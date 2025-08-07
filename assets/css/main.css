@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+  
+  body {
+    @apply font-sans antialiased text-secondary-900 bg-white;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/80 backdrop-blur-md border border-white/20;
+  }
+  
+  .glass-dark {
+    @apply bg-secondary-900/80 backdrop-blur-md border border-secondary-800/50;
+  }
+  
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-4 focus:ring-primary-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out;
+  }
+  
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-secondary-700 bg-white border border-secondary-300 rounded-lg hover:bg-secondary-50 focus:outline-none focus:ring-4 focus:ring-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out;
+  }
+  
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-secondary-700 hover:bg-secondary-100 rounded-lg focus:outline-none focus:ring-4 focus:ring-secondary-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out;
+  }
+  
+  .input-field {
+    @apply block w-full px-3 py-2.5 text-sm text-secondary-900 bg-white border border-secondary-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-secondary-50 disabled:text-secondary-500 transition-all duration-200 ease-in-out;
+  }
+  
+  .card {
+    @apply bg-white rounded-xl shadow-soft border border-secondary-100 p-6;
+  }
+  
+  .card-hover {
+    @apply bg-white rounded-xl shadow-soft border border-secondary-100 p-6 hover:shadow-medium transition-all duration-300 ease-in-out;
+  }
+  
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent;
+  }
+  
+  .gradient-bg {
+    @apply bg-gradient-to-br from-primary-50 via-white to-accent-50;
+  }
+  
+  .nav-link {
+    @apply text-secondary-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200 ease-in-out;
+  }
+  
+  .nav-link-active {
+    @apply text-primary-600 bg-primary-50 px-3 py-2 rounded-md text-sm font-medium;
+  }
+}
+
+@layer utilities {
+  .text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .text-shadow-lg {
+    text-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+}
