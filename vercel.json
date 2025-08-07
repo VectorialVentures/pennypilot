@@ -1,13 +1,4 @@
 {
-  "builds": [
-    {
-      "src": "nuxt.config.ts",
-      "use": "@nuxtjs/static-build",
-      "config": {
-        "serverFiles": ["server/**"]
-      }
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
