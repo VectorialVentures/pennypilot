@@ -1,4 +1,4 @@
-# StockAdvisor
+# PennyPilot AI
 
 AI-powered investment portfolio management platform built with Nuxt 4, Supabase, and Stripe.
 
