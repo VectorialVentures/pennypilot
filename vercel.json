@@ -2,7 +2,7 @@
   "builds": [
     {
       "src": "nuxt.config.ts",
-      "use": "@nuxtjs/vercel-builder",
+      "use": "@nuxtjs/static-build",
       "config": {
         "serverFiles": ["server/**"]
       }
@@ -28,7 +28,7 @@
     "NUXT_SECRET_KEY": "@nuxt-secret-key"
   },
   "functions": {
-    "pages/api/**/*.js": {
+    "server/api/**/*.js": {
       "maxDuration": 30
     }
   }
