@@ -5,6 +5,9 @@ export default defineNuxtConfig({
   future: {
     compatibilityVersion: 4,
   },
+  nitro: {
+    preset: 'vercel'
+  },
   modules: [
     '@nuxtjs/tailwindcss',
     '@nuxtjs/supabase',
