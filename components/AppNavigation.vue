@@ -8,7 +8,7 @@
             <div class="w-8 h-8 bg-gradient-to-r from-primary-500 to-accent-500 rounded-lg flex items-center justify-center">
               <span class="text-white font-bold text-lg">S</span>
             </div>
-            <span class="text-xl font-bold gradient-text">StockAdvisor</span>
+            <span class="text-xl font-bold gradient-text">PennyPilot</span>
           </NuxtLink>
         </div>
 

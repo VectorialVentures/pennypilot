@@ -4,7 +4,7 @@
       <div class="glass rounded-2xl shadow-strong p-8">
         <div class="text-center">
           <h2 class="text-3xl font-bold gradient-text">Welcome back</h2>
-          <p class="mt-2 text-sm text-secondary-600">Sign in to your StockAdvisor account</p>
+          <p class="mt-2 text-sm text-secondary-600">Sign in to your PennyPilot account</p>
         </div>
 
         <form @submit.prevent="handleLogin" class="mt-8 space-y-6">
@@ -98,17 +98,6 @@
               Sign up
             </NuxtLink>
           </p>
-          <div class="mt-4 space-y-2">
-            <button @click="$router.push('/auth/signup')" class="block w-full text-sm text-blue-600 hover:text-blue-500">
-              Try $router.push to signup
-            </button>
-            <button @click="navigateTo('/auth/signup')" class="block w-full text-sm text-green-600 hover:text-green-500">
-              Try navigateTo to signup
-            </button>
-            <a href="/auth/signup" class="block w-full text-sm text-purple-600 hover:text-purple-500">
-              Try href to signup
-            </a>
-          </div>
         </div>
       </div>
     </div>
@@ -139,18 +128,18 @@ const error = ref('')
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     const { error: loginError } = await supabase.auth.signInWithPassword({
       email: email.value,
       password: password.value
     })
-    
+
     if (loginError) {
       error.value = loginError.message
       return
     }
-    
+
     await router.push('/dashboard')
   } catch (err) {
     error.value = 'An unexpected error occurred'
@@ -163,7 +152,7 @@ const handleLogin = async () => {
 const handleGoogleLogin = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     const { error: loginError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -171,7 +160,7 @@ const handleGoogleLogin = async () => {
         redirectTo: `${window.location.origin}/auth/callback`
       }
     })
-    
+
     if (loginError) {
       error.value = loginError.message
     }

@@ -4,7 +4,7 @@
       <div class="glass rounded-2xl shadow-strong p-8">
         <div class="text-center">
           <h2 class="text-3xl font-bold gradient-text">Create your account</h2>
-          <p class="mt-2 text-sm text-secondary-600">Join StockAdvisor and start your investment journey</p>
+          <p class="mt-2 text-sm text-secondary-600">Join PennyPilot and start your investment journey</p>
         </div>
 
         <form @submit.prevent="handleSignup" class="mt-8 space-y-6">
@@ -66,9 +66,9 @@
               class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
             />
             <label for="agree-terms" class="ml-2 block text-sm text-secondary-700">
-              I agree to the 
-              <a href="/terms" class="text-primary-600 hover:text-primary-500">Terms of Service</a> 
-              and 
+              I agree to the
+              <a href="/terms" class="text-primary-600 hover:text-primary-500">Terms of Service</a>
+              and
               <a href="/privacy" class="text-primary-600 hover:text-primary-500">Privacy Policy</a>
             </label>
           </div>
@@ -162,15 +162,15 @@ const isFormValid = computed(() => {
 const handleSignup = async () => {
   loading.value = true
   error.value = ''
-  
+
   console.log('Starting signup process...')
-  
+
   if (password.value !== confirmPassword.value) {
     error.value = 'Passwords do not match'
     loading.value = false
     return
   }
-  
+
   try {
     console.log('Attempting Supabase signup...')
     const { data, error: signupError } = await supabase.auth.signUp({
@@ -182,15 +182,15 @@ const handleSignup = async () => {
         }
       }
     })
-    
+
     console.log('Signup response:', { data, signupError })
-    
+
     if (signupError) {
       error.value = signupError.message
       console.error('Signup error:', signupError)
       return
     }
-    
+
     if (data.user && !data.session) {
       // Email confirmation required
       console.log('Email confirmation required')
@@ -212,7 +212,7 @@ const handleSignup = async () => {
 const handleGoogleSignup = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     const { error: signupError } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -220,7 +220,7 @@ const handleGoogleSignup = async () => {
         redirectTo: `${window.location.origin}/auth/callback`
       }
     })
-    
+
     if (signupError) {
       error.value = signupError.message
     }

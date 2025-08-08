@@ -1,6 +1,6 @@
 # StockAdvisor REST API Documentation
 
-This document outlines the REST API endpoints for the StockAdvisor platform.
+This document outlines the REST API endpoints for the PennyPilot platform.
 
 ## Base URL
 
