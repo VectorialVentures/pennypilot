@@ -8,19 +8,5 @@
       "src": "/(.*)",
       "dest": "/"
     }
-  ],
-  "env": {
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key",
-    "STRIPE_PUBLISHABLE_KEY": "@stripe-publishable-key",
-    "STRIPE_SECRET_KEY": "@stripe-secret-key",
-    "STRIPE_WEBHOOK_SECRET": "@stripe-webhook-secret",
-    "NUXT_SECRET_KEY": "@nuxt-secret-key"
-  },
-  "functions": {
-    "server/api/**/*.js": {
-      "maxDuration": 30
-    }
-  }
+  ]
 }
