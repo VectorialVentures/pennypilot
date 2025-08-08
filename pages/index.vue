@@ -72,7 +72,7 @@
                 <!-- Main Robot Image -->
                 <div class="relative bg-gradient-to-br from-white/80 to-slate-50/80 backdrop-blur-sm rounded-3xl p-8 shadow-2xl border border-white/20 animate-float-up">
                   <NuxtImg 
-                    src="/assets/images/PennyPilot.png" 
+                    src="~/assets/images/PennyPilot.png" 
                     alt="PennyPilot AI Investment Assistant Robot"
                     class="w-full max-w-lg mx-auto h-auto animate-gentle-bounce"
                     width="512"
