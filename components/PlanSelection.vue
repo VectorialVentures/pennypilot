@@ -11,7 +11,7 @@
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-3 max-w-7xl mx-auto">
         <!-- Free Plan -->
         <div class="relative group">
-          <div class="glass rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-8 h-full border-2 border-transparent">
+          <div class="bg-background-900/90 backdrop-blur-md rounded-2xl border border-white/20 hover:border-white/40 shadow-lg hover:shadow-2xl hover:shadow-white/10 transition-all duration-300 transform hover:-translate-y-1 p-8 h-full">
             <div class="text-center">
               <h3 class="text-2xl font-bold text-white">Free</h3>
               <div class="mt-4 flex items-center justify-center">
@@ -58,8 +58,8 @@
 
         <!-- Basic Plan -->
         <div class="relative group">
-          <div class="absolute -inset-1 bg-gradient-to-r from-primary-600 to-accent-600 rounded-2xl blur opacity-25 group-hover:opacity-75 transition duration-1000 group-hover:duration-200"></div>
-          <div class="relative glass rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-8 h-full border-2 border-primary-200">
+          <div class="absolute -inset-1 bg-gradient-to-r from-primary-600 to-accent-600 rounded-2xl blur opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200"></div>
+          <div class="relative bg-background-900/95 backdrop-blur-md rounded-2xl border border-primary-500/50 hover:border-primary-400 shadow-lg hover:shadow-2xl hover:shadow-primary-500/20 transition-all duration-300 transform hover:-translate-y-1 p-8 h-full">
             <!-- Most Popular Badge -->
             <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
               <span class="bg-gradient-to-r from-primary-600 to-accent-600 text-white px-4 py-1 rounded-full text-sm font-medium">
@@ -117,7 +117,7 @@
 
         <!-- Premium Plan -->
         <div class="relative group">
-          <div class="glass rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-8 h-full border-2 border-transparent">
+          <div class="bg-background-900/90 backdrop-blur-md rounded-2xl border border-purple-500/30 hover:border-purple-400 shadow-lg hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 transform hover:-translate-y-1 p-8 h-full">
             <div class="text-center">
               <h3 class="text-2xl font-bold text-white">Premium</h3>
               <div class="mt-4 flex items-center justify-center">
@@ -375,12 +375,3 @@ const redirectToAnonymousCheckout = async (planType: 'basic' | 'premium') => {
 }
 </script>
 
-<style scoped>
-.gradient-text {
-  @apply bg-gradient-to-r from-primary-600 to-accent-600 bg-clip-text text-transparent;
-}
-
-.glass {
-  @apply bg-white/70 backdrop-blur-sm;
-}
-</style>

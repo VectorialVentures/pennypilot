@@ -6,7 +6,7 @@
 
 <script setup lang="ts">
 useHead({
-  title: 'StockAdvisor - AI-Powered Investment Platform',
+  title: 'PennyPilot - AI-Powered Investment Platform',
   meta: [
     { name: 'description', content: 'Transform your investment strategy with AI-powered portfolio management and intelligent stock recommendations.' },
     { name: 'viewport', content: 'width=device-width, initial-scale=1' },
