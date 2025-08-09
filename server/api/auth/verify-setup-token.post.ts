@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     }
 
     // Check if this user was created via Stripe and needs password setup
-    if (!user.user_metadata?.created_via_stripe || user.user_metadata?.password_set) {
+    if (!user?.user?.user_metadata?.created_via_stripe || user?.user?.user_metadata?.password_set) {
       throw createError({
         statusCode: 400,
         statusMessage: 'This user does not need password setup'
@@ -54,12 +54,12 @@ export default defineEventHandler(async (event) => {
 
   } catch (error: any) {
     console.error('Token verification error:', error)
-    
+
     // If it's already a createError, re-throw it
     if (error.statusCode) {
       throw error
     }
-    
+
     throw createError({
       statusCode: 500,
       statusMessage: 'Failed to verify token'
