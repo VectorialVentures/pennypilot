@@ -1,14 +1,11 @@
 <template>
   <div class="relative">
-    <!-- Background gradient -->
-    <div class="absolute inset-0 bg-gradient-to-br from-primary-50 to-accent-50 rounded-3xl opacity-50"></div>
-    
-    <div class="relative z-10 py-16 px-6 sm:py-20 sm:px-8">
+    <div class="relative py-16 px-6 sm:py-20 sm:px-8">
       <div class="text-center mb-12">
-        <h2 class="text-4xl font-bold text-gray-900 sm:text-5xl">
+        <h2 class="text-4xl font-bold text-white sm:text-5xl">
           Choose your <span class="gradient-text">plan</span>
         </h2>
-        <p class="mt-4 text-xl text-gray-600">Start free, upgrade as you grow</p>
+        <p class="mt-4 text-xl text-white/70">Start free, upgrade as you grow</p>
       </div>
 
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-3 max-w-7xl mx-auto">
@@ -16,37 +13,37 @@
         <div class="relative group">
           <div class="glass rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-8 h-full border-2 border-transparent">
             <div class="text-center">
-              <h3 class="text-2xl font-bold text-gray-900">Free</h3>
+              <h3 class="text-2xl font-bold text-white">Free</h3>
               <div class="mt-4 flex items-center justify-center">
-                <span class="text-5xl font-bold text-gray-900">$0</span>
-                <span class="ml-2 text-gray-500 text-lg">/month</span>
+                <span class="text-5xl font-bold text-white">$0</span>
+                <span class="ml-2 text-white/60 text-lg">/month</span>
               </div>
-              <p class="mt-2 text-sm text-gray-600">Perfect to get started</p>
+              <p class="mt-2 text-sm text-white/70">Perfect to get started</p>
             </div>
 
             <ul class="mt-8 space-y-4">
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">1 Portfolio</span>
+                <span class="text-white/80">1 Portfolio</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Basic tracking</span>
+                <span class="text-white/80">Basic tracking</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Monthly reports</span>
+                <span class="text-white/80">Monthly reports</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Community support</span>
+                <span class="text-white/80">Community support</span>
               </li>
             </ul>
 
             <button
               @click="selectPlan('free')"
               :disabled="loading && selectedPlan === 'free'"
-              class="w-full mt-8 px-6 py-3 bg-gray-100 text-gray-900 rounded-xl font-semibold hover:bg-gray-200 transition-colors duration-200 disabled:opacity-50"
+              class="w-full mt-8 px-6 py-3 bg-background-800/50 text-white border border-white/20 rounded-xl font-semibold hover:bg-background-700 transition-colors duration-200 disabled:opacity-50"
             >
               <span v-if="loading && selectedPlan === 'free'" class="flex items-center justify-center">
                 <LoadingSpinner class="mr-2" />
@@ -55,7 +52,7 @@
               <span v-else>Get started free</span>
             </button>
 
-            <p class="mt-4 text-xs text-center text-gray-500">No credit card required</p>
+            <p class="mt-4 text-xs text-center text-white/50">No credit card required</p>
           </div>
         </div>
 
@@ -71,34 +68,34 @@
             </div>
 
             <div class="text-center">
-              <h3 class="text-2xl font-bold text-gray-900">Basic</h3>
+              <h3 class="text-2xl font-bold text-white">Basic</h3>
               <div class="mt-4 flex items-center justify-center">
-                <span class="text-5xl font-bold text-gray-900">{{ formatPrice('basic') }}</span>
-                <span class="ml-2 text-gray-500 text-lg">/month</span>
+                <span class="text-5xl font-bold text-white">{{ formatPrice('basic') }}</span>
+                <span class="ml-2 text-white/60 text-lg">/month</span>
               </div>
-              <p class="mt-2 text-sm text-gray-600">For serious investors</p>
+              <p class="mt-2 text-sm text-white/70">For serious investors</p>
             </div>
 
             <ul class="mt-8 space-y-4">
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">5 Portfolios</span>
+                <span class="text-white/80">5 Portfolios</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Advanced analytics</span>
+                <span class="text-white/80">Advanced analytics</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">AI recommendations</span>
+                <span class="text-white/80">AI recommendations</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Weekly reports</span>
+                <span class="text-white/80">Weekly reports</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Email support</span>
+                <span class="text-white/80">Email support</span>
               </li>
             </ul>
 
@@ -114,7 +111,7 @@
               <span v-else>Start Basic Plan</span>
             </button>
 
-            <p class="mt-4 text-xs text-center text-gray-500">14-day free trial</p>
+            <p class="mt-4 text-xs text-center text-white/50">14-day free trial</p>
           </div>
         </div>
 
@@ -122,38 +119,38 @@
         <div class="relative group">
           <div class="glass rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 p-8 h-full border-2 border-transparent">
             <div class="text-center">
-              <h3 class="text-2xl font-bold text-gray-900">Premium</h3>
+              <h3 class="text-2xl font-bold text-white">Premium</h3>
               <div class="mt-4 flex items-center justify-center">
-                <span class="text-5xl font-bold text-gray-900">{{ formatPrice('premium') }}</span>
-                <span class="ml-2 text-gray-500 text-lg">/month</span>
+                <span class="text-5xl font-bold text-white">{{ formatPrice('premium') }}</span>
+                <span class="ml-2 text-white/60 text-lg">/month</span>
               </div>
-              <p class="mt-2 text-sm text-gray-600">For professional traders</p>
+              <p class="mt-2 text-sm text-white/70">For professional traders</p>
             </div>
 
             <ul class="mt-8 space-y-4">
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Unlimited portfolios</span>
+                <span class="text-white/80">Unlimited portfolios</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Real-time data</span>
+                <span class="text-white/80">Real-time data</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Advanced AI insights</span>
+                <span class="text-white/80">Advanced AI insights</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Daily reports</span>
+                <span class="text-white/80">Daily reports</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Priority support</span>
+                <span class="text-white/80">Priority support</span>
               </li>
               <li class="flex items-center">
                 <CheckIcon class="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-                <span class="text-gray-700">Custom alerts</span>
+                <span class="text-white/80">Custom alerts</span>
               </li>
             </ul>
 
@@ -169,14 +166,14 @@
               <span v-else>Start Premium Plan</span>
             </button>
 
-            <p class="mt-4 text-xs text-center text-gray-500">14-day free trial</p>
+            <p class="mt-4 text-xs text-center text-white/50">14-day free trial</p>
           </div>
         </div>
       </div>
 
       <!-- Trust indicators -->
       <div class="mt-16 text-center">
-        <div class="flex items-center justify-center space-x-8 text-sm text-gray-500">
+        <div class="flex items-center justify-center space-x-8 text-sm text-white/60">
           <div class="flex items-center">
             <ShieldCheckIcon class="h-5 w-5 mr-2 text-green-500" />
             <span>Secure payments</span>

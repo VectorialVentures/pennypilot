@@ -29,12 +29,12 @@ export default defineEventHandler(async (event) => {
 
     // Get price ID from subscription_plans table
     const supabase = await serverSupabaseServiceRole<Database>(event)
-    
+
     const { data: subscriptionPlan, error: planError } = await supabase
       .from('subscription_plans')
       .select('stripe_price_id, name')
-      .eq('name', plan)
-      .eq('currency', currency)
+      .ilike('name', plan)
+      .ilike('currency', currency)
       .eq('active', true)
       .single()
 

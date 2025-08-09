@@ -1,40 +1,50 @@
 <template>
-  <div class="min-h-screen gradient-bg">
+  <div class="min-h-screen">
+    <!-- Background matching dashboard -->
+    <div class="absolute inset-0 bg-gradient-to-br from-background-950 via-background-900 to-background-950">
+      <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
+      <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
+    </div>
+    
+    <!-- Floating Gradient Orbs -->
+    <div class="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow"></div>
+    <div class="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-l from-accent-400/15 to-primary-400/15 rounded-full blur-3xl animate-float-reverse"></div>
+    
     <!-- Plan Selection Step -->
-    <div v-if="currentStep === 'plan'" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div v-if="currentStep === 'plan'" class="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-7xl w-full">
         <div class="text-center mb-8">
           <h1 class="text-4xl font-bold gradient-text">Welcome to PennyPilot</h1>
-          <p class="mt-4 text-lg text-secondary-600">Choose your plan to get started</p>
+          <p class="mt-4 text-lg text-white/70">Choose your plan to get started</p>
         </div>
         <PlanSelection @plan-selected="handlePlanSelection" :redirect-after-selection="false" />
       </div>
     </div>
 
     <!-- Account Creation Step -->
-    <div v-else class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div v-else class="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-md w-full">
-        <div class="glass rounded-2xl shadow-strong p-8">
-        <div class="text-center">
-          <button 
-            @click="currentStep = 'plan'" 
-            class="text-sm text-primary-600 hover:text-primary-500 mb-4 flex items-center"
-          >
-            <ArrowLeftIcon class="h-4 w-4 mr-1" />
-            Back to plans
-          </button>
-          <h2 class="text-3xl font-bold gradient-text">Create your account</h2>
-          <p class="mt-2 text-sm text-secondary-600">
-            <span v-if="selectedPlan">
-              Selected: <span class="font-semibold capitalize">{{ selectedPlan }}</span> plan
-            </span>
-            <span v-else>Join PennyPilot and start your investment journey</span>
-          </p>
-        </div>
+        <div class="glass-dark rounded-2xl p-8">
+          <div class="text-center">
+            <button 
+              @click="currentStep = 'plan'" 
+              class="text-sm text-primary-400 hover:text-primary-300 mb-4 flex items-center"
+            >
+              <ArrowLeftIcon class="h-4 w-4 mr-1" />
+              Back to plans
+            </button>
+            <h2 class="text-3xl font-bold gradient-text">Create your account</h2>
+            <p class="mt-2 text-sm text-white/70">
+              <span v-if="selectedPlan">
+                Selected: <span class="font-semibold capitalize">{{ selectedPlan }}</span> plan
+              </span>
+              <span v-else>Join PennyPilot and start your investment journey</span>
+            </p>
+          </div>
 
         <form @submit.prevent="handleSignup" class="mt-8 space-y-6">
           <div>
-            <label for="fullName" class="block text-sm font-medium text-secondary-700">Full Name</label>
+            <label for="fullName" class="block text-sm font-medium text-white/80">Full Name</label>
             <input
               id="fullName"
               v-model="fullName"
@@ -46,7 +56,7 @@
           </div>
 
           <div>
-            <label for="email" class="block text-sm font-medium text-secondary-700">Email</label>
+            <label for="email" class="block text-sm font-medium text-white/80">Email</label>
             <input
               id="email"
               v-model="email"
@@ -58,7 +68,7 @@
           </div>
 
           <div>
-            <label for="password" class="block text-sm font-medium text-secondary-700">Password</label>
+            <label for="password" class="block text-sm font-medium text-white/80">Password</label>
             <input
               id="password"
               v-model="password"
@@ -71,7 +81,7 @@
           </div>
 
           <div>
-            <label for="confirmPassword" class="block text-sm font-medium text-secondary-700">Confirm Password</label>
+            <label for="confirmPassword" class="block text-sm font-medium text-white/80">Confirm Password</label>
             <input
               id="confirmPassword"
               v-model="confirmPassword"
@@ -90,7 +100,7 @@
               required
               class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
             />
-            <label for="agree-terms" class="ml-2 block text-sm text-secondary-700">
+            <label for="agree-terms" class="ml-2 block text-sm text-white/80">
               I agree to the
               <a href="/terms" class="text-primary-600 hover:text-primary-500">Terms of Service</a>
               and
@@ -98,8 +108,8 @@
             </label>
           </div>
 
-          <div v-if="error" class="rounded-md bg-danger-50 p-4">
-            <p class="text-sm text-danger-800">{{ error }}</p>
+          <div v-if="error" class="rounded-md bg-red-500/20 border border-red-500/30 p-4">
+            <p class="text-sm text-red-300">{{ error }}</p>
           </div>
 
           <button
@@ -120,10 +130,10 @@
           <div class="mt-6">
             <div class="relative">
               <div class="absolute inset-0 flex items-center">
-                <div class="w-full border-t border-secondary-300" />
+                <div class="w-full border-t border-white/20" />
               </div>
               <div class="relative flex justify-center text-sm">
-                <span class="px-2 bg-white text-secondary-500">Or continue with</span>
+                <span class="px-2 bg-background-950 text-white/70">Or continue with</span>
               </div>
             </div>
 
@@ -146,14 +156,14 @@
           </div>
         </form>
 
-        <div class="mt-6 text-center">
-          <p class="text-sm text-secondary-600">
-            Already have an account?
-            <NuxtLink to="/auth/login" class="font-medium text-primary-600 hover:text-primary-500">
-              Sign in
-            </NuxtLink>
-          </p>
-        </div>
+          <div class="mt-6 text-center">
+            <p class="text-sm text-white/70">
+              Already have an account?
+              <NuxtLink to="/auth/login" class="font-medium text-primary-400 hover:text-primary-300">
+                Sign in
+              </NuxtLink>
+            </p>
+          </div>
         </div>
       </div>
     </div>

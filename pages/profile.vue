@@ -154,9 +154,9 @@
               Delete Account
             </button>
           </div>
+          </div>
         </div>
       </div>
-    </div>
 
     <!-- Success/Error Messages -->
     <div v-if="message" class="fixed bottom-4 right-4 z-50">
