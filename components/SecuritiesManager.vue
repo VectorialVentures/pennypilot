@@ -1,13 +1,13 @@
 <template>
   <div class="space-y-6">
     <!-- Add Security Form -->
-    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6">
-      <h3 class="text-lg font-semibold text-gray-900 mb-4">Add Security</h3>
+    <div class="border-2 border-dashed border-white/30 rounded-lg p-6 bg-white/5 backdrop-blur-sm">
+      <h3 class="text-lg font-semibold text-white mb-4">Add Security</h3>
       
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
         <!-- Security Search -->
         <div class="lg:col-span-2">
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-sm font-medium text-white/80 mb-2">
             Security (Ticker or Company Name)
           </label>
           <div class="relative">
@@ -21,26 +21,26 @@
               @blur="hideResults"
             />
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <MagnifyingGlassIcon class="h-5 w-5 text-gray-400" />
+              <MagnifyingGlassIcon class="h-5 w-5 text-white/40" />
             </div>
             
             <!-- Search Results Dropdown -->
             <div 
               v-if="showResults && searchResults.length > 0"
-              class="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto"
+              class="absolute z-10 mt-1 w-full bg-background-900 border border-white/20 shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto"
             >
               <div
                 v-for="security in searchResults"
                 :key="security.id"
                 @mousedown="selectSecurity(security)"
-                class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-gray-50"
+                class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-white/10"
               >
                 <div class="flex items-center">
                   <div class="flex-1">
-                    <span class="font-medium text-gray-900">{{ security.symbol }}</span>
-                    <span class="ml-2 text-gray-500">{{ security.name }}</span>
+                    <span class="font-medium text-white">{{ security.symbol }}</span>
+                    <span class="ml-2 text-white/70">{{ security.name }}</span>
                   </div>
-                  <div class="text-sm text-gray-500">
+                  <div class="text-sm text-white/60">
                     {{ security.exchange }}
                   </div>
                 </div>
@@ -50,7 +50,7 @@
             <!-- No Results -->
             <div 
               v-if="showResults && searchQuery && searchResults.length === 0 && !searching"
-              class="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md py-2 text-center text-sm text-gray-500"
+              class="absolute z-10 mt-1 w-full bg-background-900 border border-white/20 shadow-lg rounded-md py-2 text-center text-sm text-white/60"
             >
               No securities found
             </div>
@@ -59,7 +59,7 @@
         
         <!-- Number of Shares -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-sm font-medium text-white/80 mb-2">
             Number of Shares
           </label>
           <input
@@ -74,12 +74,12 @@
         
         <!-- Average Price -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-sm font-medium text-white/80 mb-2">
             Average Price per Share
           </label>
           <div class="relative">
             <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span class="text-gray-500">$</span>
+              <span class="text-white/60">$</span>
             </div>
             <input
               v-model.number="newSecurity.averagePrice"
@@ -94,7 +94,7 @@
         
         <!-- Purchase Date -->
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">
+          <label class="block text-sm font-medium text-white/80 mb-2">
             Purchase Date (Optional)
           </label>
           <input
@@ -118,45 +118,45 @@
     
     <!-- Securities List -->
     <div v-if="securities.length > 0" class="space-y-3">
-      <h3 class="text-lg font-semibold text-gray-900">Portfolio Securities</h3>
+      <h3 class="text-lg font-semibold text-white">Portfolio Securities</h3>
       
       <div class="space-y-2">
         <div
           v-for="(security, index) in securities"
           :key="index"
-          class="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-colors"
+          class="flex items-center justify-between p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/20 hover:border-white/30 transition-colors"
         >
           <div class="flex-1">
             <div class="flex items-center space-x-4">
               <div class="flex-1">
-                <div class="font-medium text-gray-900">
+                <div class="font-medium text-white">
                   {{ security.symbol }}
                 </div>
-                <div class="text-sm text-gray-500">
+                <div class="text-sm text-white/70">
                   {{ security.name }}
                 </div>
               </div>
               
               <div class="text-right">
-                <div class="font-medium text-gray-900">
+                <div class="font-medium text-white">
                   {{ formatNumber(security.shares) }} shares
                 </div>
-                <div class="text-sm text-gray-500">
+                <div class="text-sm text-white/70">
                   @ ${{ formatCurrency(security.averagePrice) }}
                 </div>
               </div>
               
               <div class="text-right">
-                <div class="font-medium text-gray-900">
+                <div class="font-medium text-white">
                   ${{ formatCurrency(security.shares * security.averagePrice) }}
                 </div>
-                <div class="text-sm text-gray-500">
+                <div class="text-sm text-white/70">
                   Total Value
                 </div>
               </div>
               
               <div class="text-right min-w-[100px]">
-                <div class="text-sm text-gray-500">
+                <div class="text-sm text-white/70">
                   {{ security.purchaseDate ? formatDate(security.purchaseDate) : 'No date' }}
                 </div>
               </div>
@@ -173,23 +173,23 @@
       </div>
       
       <!-- Portfolio Summary -->
-      <div class="bg-gray-50 rounded-lg p-4 mt-4">
+      <div class="bg-white/5 backdrop-blur-sm rounded-lg p-4 mt-4 border border-white/10">
         <div class="flex justify-between items-center text-sm">
-          <span class="text-gray-600">Total Securities:</span>
-          <span class="font-medium">{{ securities.length }}</span>
+          <span class="text-white/70">Total Securities:</span>
+          <span class="font-medium text-white">{{ securities.length }}</span>
         </div>
         <div class="flex justify-between items-center text-sm mt-1">
-          <span class="text-gray-600">Total Investment Value:</span>
-          <span class="font-medium">${{ formatCurrency(totalValue) }}</span>
+          <span class="text-white/70">Total Investment Value:</span>
+          <span class="font-medium text-white">${{ formatCurrency(totalValue) }}</span>
         </div>
       </div>
     </div>
     
     <!-- Empty State -->
     <div v-else class="text-center py-8">
-      <CurrencyDollarIcon class="mx-auto h-12 w-12 text-gray-400" />
-      <h3 class="mt-2 text-sm font-medium text-gray-900">No securities added</h3>
-      <p class="mt-1 text-sm text-gray-500">
+      <CurrencyDollarIcon class="mx-auto h-12 w-12 text-white/40" />
+      <h3 class="mt-2 text-sm font-medium text-white">No securities added</h3>
+      <p class="mt-1 text-sm text-white/70">
         Add your first security using the form above
       </p>
     </div>

@@ -3,7 +3,6 @@ import Stripe from 'stripe'
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const body = await readBody(event)
-  const supabase = await useSupabaseServiceRole()
 
   if (!config.stripeSecretKey) {
     throw createError({
@@ -17,12 +16,12 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    const { priceId, customerId, accountId } = body
+    const { plan, currency = 'sek' } = body
 
-    if (!priceId) {
+    if (!plan || !['basic', 'premium'].includes(plan)) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Price ID is required'
+        statusMessage: 'Valid plan (basic or premium) is required'
       })
     }
 
@@ -40,27 +39,19 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Extract plan and currency from request or use defaults
-    const { plan, currency = 'sek' } = body
+    const priceId = priceMappings[plan as keyof typeof priceMappings]?.[currency as 'sek' | 'usd' | 'eur']
 
-    let actualPriceId = priceId
-
-    // If a plan type was provided instead of direct price ID
-    if (plan && ['basic', 'premium'].includes(plan)) {
-      actualPriceId = priceMappings[plan as keyof typeof priceMappings]?.[currency as 'sek' | 'usd' | 'eur']
-
-      if (!actualPriceId) {
-        throw createError({
-          statusCode: 400,
-          statusMessage: `Price not configured for ${plan} plan in ${currency.toUpperCase()}`
-        })
-      }
+    if (!priceId) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: `Price not configured for ${plan} plan in ${currency.toUpperCase()}`
+      })
     }
 
     // Verify the price exists in Stripe
     let stripePrice
     try {
-      stripePrice = await stripe.prices.retrieve(actualPriceId)
+      stripePrice = await stripe.prices.retrieve(priceId)
     } catch (error) {
       throw createError({
         statusCode: 400,
@@ -80,34 +71,29 @@ export default defineEventHandler(async (event) => {
       payment_method_types: ['card'],
       line_items: [
         {
-          price: actualPriceId,
+          price: priceId,
           quantity: 1
         }
       ],
       subscription_data: {
         trial_period_days: planInfo.trial_period_days,
         metadata: {
-          account_id: accountId || '',
-          plan_name: planInfo.name
+          plan_name: planInfo.name,
+          plan_type: plan,
+          currency: currency
         }
       },
-      success_url: `${getHeader(event, 'origin')}/dashboard?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${getHeader(event, 'origin')}/auth/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${getHeader(event, 'origin')}/pricing?canceled=true`,
       metadata: {
-        priceId,
-        accountId: accountId || '',
-        plan_name: planInfo.name
-      }
-    }
-
-    // Handle customer assignment
-    if (customerId) {
-      sessionConfig.customer = customerId
-    } else {
-      const customerEmail = await getCustomerEmail(event, accountId)
-      if (customerEmail) {
-        sessionConfig.customer_email = customerEmail
-      }
+        plan_type: plan,
+        plan_name: planInfo.name,
+        currency: currency,
+        anonymous_checkout: 'true'
+      },
+      // Collect customer information during checkout
+      customer_creation: 'always',
+      billing_address_collection: 'required'
     }
 
     const session = await stripe.checkout.sessions.create(sessionConfig)
@@ -119,28 +105,10 @@ export default defineEventHandler(async (event) => {
       }
     }
   } catch (error) {
-    console.error('Stripe checkout session error:', error)
+    console.error('Stripe anonymous checkout session error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to create checkout session'
+      statusMessage: 'Failed to create anonymous checkout session'
     })
   }
 })
-
-async function getCustomerEmail(event: any, accountId?: string): Promise<string | undefined> {
-  if (!accountId) return undefined
-
-  try {
-    const supabase = await useSupabaseServiceRole()
-    const { data } = await supabase
-      .from('accounts')
-      .select('billing_email')
-      .eq('id', accountId)
-      .single()
-
-    return data?.billing_email || undefined
-  } catch (error) {
-    console.error('Error getting customer email:', error)
-    return undefined
-  }
-}

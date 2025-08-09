@@ -1,18 +1,29 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Background matching landing page -->
+  <div class="min-h-screen">
+    <div class="absolute inset-0 bg-gradient-to-br from-background-950 via-background-900 to-background-950">
+      <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
+      <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
+    </div>
+    
+    <!-- Floating Gradient Orbs -->
+    <div class="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow"></div>
+    <div class="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-l from-accent-400/15 to-primary-400/15 rounded-full blur-3xl animate-float-reverse"></div>
+    
+    <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Welcome Header -->
     <div class="mb-8">
       <div class="flex items-center justify-between">
         <div>
           <h1 class="text-3xl font-bold gradient-text">Welcome back{{ profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : '' }}!</h1>
-          <p class="text-secondary-600 mt-2">Here's what's happening with your investments today</p>
+          <p class="text-white/70 mt-2">Here's what's happening with your investments today</p>
         </div>
         <div class="hidden md:flex items-center space-x-4">
           <div class="text-right">
-            <div class="text-sm text-secondary-600">Market Status</div>
+            <div class="text-sm text-white/60">Market Status</div>
             <div class="flex items-center space-x-2">
               <div class="w-2 h-2 bg-accent-500 rounded-full animate-pulse"></div>
-              <span class="text-sm font-medium text-secondary-900">Markets Open</span>
+              <span class="text-sm font-medium text-white">Markets Open</span>
             </div>
           </div>
         </div>
@@ -26,18 +37,18 @@
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
         </svg>
-        <span class="text-sm text-secondary-600">Loading your portfolios...</span>
+        <span class="text-sm text-white/70">Loading your portfolios...</span>
       </div>
     </div>
     
     <div v-else-if="portfolios.length === 0" class="text-center py-12">
-      <div class="mx-auto h-24 w-24 text-secondary-400 mb-4">
+      <div class="mx-auto h-24 w-24 text-white/40 mb-4">
         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
         </svg>
       </div>
-      <h3 class="text-lg font-medium text-secondary-900 mb-2">No portfolios yet</h3>
-      <p class="text-secondary-600 mb-4">Get started by creating your first investment portfolio</p>
+      <h3 class="text-lg font-medium text-white mb-2">No portfolios yet</h3>
+      <p class="text-white/70 mb-4">Get started by creating your first investment portfolio</p>
       <button @click="navigateTo('/onboarding')" class="btn-primary">
         Create Your First Portfolio
       </button>
@@ -63,11 +74,11 @@
     <PortfolioChart :portfolio-id="selectedPortfolioId" />
 
     <!-- AI Recommendations -->
-    <div ref="recommendationsSection" class="card mt-8">
+    <div ref="recommendationsSection" class="card-dark mt-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-xl font-semibold text-secondary-900">AI Recommendations</h2>
-          <p class="text-sm text-secondary-600">Personalized insights based on market analysis</p>
+          <h2 class="text-xl font-semibold text-white">AI Recommendations</h2>
+          <p class="text-sm text-white/70">Personalized insights based on market analysis</p>
         </div>
         <button class="btn-ghost text-sm">
           View All
@@ -80,21 +91,21 @@
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span class="text-sm text-secondary-600">Loading AI recommendations...</span>
+          <span class="text-sm text-white/70">Loading AI recommendations...</span>
         </div>
       </div>
 
       <div v-else-if="recommendations.length === 0" class="text-center py-8">
-        <LightBulbIcon class="w-12 h-12 text-secondary-400 mx-auto mb-4" />
-        <h3 class="text-lg font-medium text-secondary-900 mb-2">No recommendations available</h3>
-        <p class="text-secondary-600">Our AI is analyzing your portfolio. Check back soon for personalized insights.</p>
+        <LightBulbIcon class="w-12 h-12 text-white/40 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-white mb-2">No recommendations available</h3>
+        <p class="text-white/70">Our AI is analyzing your portfolio. Check back soon for personalized insights.</p>
       </div>
 
       <div v-else class="space-y-4">
         <div
           v-for="recommendation in recommendations.slice(0, 5)"
           :key="recommendation.id"
-          class="flex items-start space-x-4 p-4 border border-secondary-200 rounded-lg hover:border-secondary-300 transition-colors duration-200"
+          class="flex items-start space-x-4 p-4 border border-white/20 rounded-lg hover:border-white/30 transition-colors duration-200 bg-white/5 backdrop-blur-sm"
         >
           <div
             :class="[
@@ -112,16 +123,16 @@
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between">
               <div>
-                <h4 class="text-sm font-medium text-secondary-900">
+                <h4 class="text-sm font-medium text-white">
                   {{ recommendation.action?.toUpperCase() }} {{ recommendation.securities?.symbol }}
                 </h4>
-                <p class="text-sm text-secondary-600 mt-1">{{ recommendation.description }}</p>
+                <p class="text-sm text-white/70 mt-1">{{ recommendation.description }}</p>
               </div>
               <div class="text-right">
-                <div v-if="recommendation.amount" class="text-sm font-medium text-secondary-900">
+                <div v-if="recommendation.amount" class="text-sm font-medium text-white">
                   ${{ recommendation.amount.toFixed(2) }}
                 </div>
-                <div class="text-xs text-secondary-500">
+                <div class="text-xs text-white/50">
                   {{ formatDate(recommendation.created_at) }}
                 </div>
               </div>
@@ -132,22 +143,22 @@
     </div>
 
     <!-- Recent Activity -->
-    <div class="card mt-8">
+    <div class="card-dark mt-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-xl font-semibold text-secondary-900">Recent Activity</h2>
-          <p class="text-sm text-secondary-600">Your latest portfolio changes</p>
+          <h2 class="text-xl font-semibold text-white">Recent Activity</h2>
+          <p class="text-sm text-white/70">Your latest portfolio changes</p>
         </div>
       </div>
 
       <div class="space-y-4">
         <div v-for="activity in recentActivity" :key="activity.id" class="flex items-center space-x-4">
-          <div class="flex-shrink-0 w-8 h-8 bg-secondary-100 rounded-full flex items-center justify-center">
-            <component :is="activity.icon" class="w-4 h-4 text-secondary-600" />
+          <div class="flex-shrink-0 w-8 h-8 bg-white/10 rounded-full flex items-center justify-center">
+            <component :is="activity.icon" class="w-4 h-4 text-white/70" />
           </div>
           <div class="flex-1">
-            <p class="text-sm text-secondary-900">{{ activity.description }}</p>
-            <p class="text-xs text-secondary-500">{{ activity.timestamp }}</p>
+            <p class="text-sm text-white">{{ activity.description }}</p>
+            <p class="text-xs text-white/50">{{ activity.timestamp }}</p>
           </div>
         </div>
       </div>
@@ -156,14 +167,15 @@
 
   <!-- Add Asset Modal (placeholder) -->
   <div v-if="showAddAssetModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-      <h3 class="text-lg font-semibold text-secondary-900 mb-4">Add New Asset</h3>
-      <p class="text-secondary-600 mb-4">This feature will be implemented in the next phase.</p>
+    <div class="bg-background-900 border border-white/20 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">Add New Asset</h3>
+      <p class="text-white/70 mb-4">This feature will be implemented in the next phase.</p>
       <div class="flex justify-end space-x-3">
         <button @click="showAddAssetModal = false" class="btn-secondary">
           Close
         </button>
       </div>
+    </div>
     </div>
   </div>
 </template>

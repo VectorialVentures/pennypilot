@@ -60,7 +60,7 @@
               class="flex items-center space-x-2 p-2 rounded-lg hover:bg-secondary-50 transition-colors duration-200"
             >
               <img
-                :src="user?.user_metadata?.avatar_url || '/default-avatar.svg'"
+                :src="user?.user_metadata?.avatar_url || '/images/default-avatar.svg'"
                 :alt="user?.user_metadata?.full_name || 'User'"
                 class="w-8 h-8 rounded-full"
               />

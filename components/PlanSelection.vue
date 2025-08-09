@@ -284,18 +284,8 @@ const selectPlan = async (planType: 'free' | 'basic' | 'premium') => {
         emit('planSelected', planType)
       }
     } else {
-      // Handle paid plans
-      if (user.value) {
-        // User is authenticated, redirect to checkout
-        await redirectToCheckout(planType)
-      } else {
-        // Store plan selection and redirect to signup
-        localStorage.setItem('selectedPlan', planType)
-        emit('planSelected', planType)
-        if (props.redirectAfterSelection) {
-          await router.push('/auth/signup')
-        }
-      }
+      // Handle paid plans - always redirect directly to Stripe checkout
+      await redirectToAnonymousCheckout(planType)
     }
   } catch (error) {
     console.error('Error selecting plan:', error)
@@ -361,6 +351,28 @@ const redirectToCheckout = async (planType: 'basic' | 'premium') => {
     }
   } catch (error) {
     console.error('Error creating checkout session:', error)
+    throw error
+  }
+}
+
+const redirectToAnonymousCheckout = async (planType: 'basic' | 'premium') => {
+  try {
+    const { data } = await $fetch('/api/stripe/create-anonymous-checkout-session', {
+      method: 'POST',
+      body: {
+        plan: planType,
+        currency: userCurrency.value
+      }
+    })
+
+    if (data?.sessionId) {
+      const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(useRuntimeConfig().public.stripePublishableKey))
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId: data.sessionId })
+      }
+    }
+  } catch (error) {
+    console.error('Error creating anonymous checkout session:', error)
     throw error
   }
 }

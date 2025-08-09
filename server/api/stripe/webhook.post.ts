@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import jwt from 'jsonwebtoken'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -38,6 +39,10 @@ export default defineEventHandler(async (event) => {
 
   try {
     switch (stripeEvent.type) {
+      case 'checkout.session.completed':
+        await handleCheckoutSessionCompleted(stripeEvent.data.object as Stripe.Checkout.Session)
+        break
+      
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionChange(stripeEvent.data.object as Stripe.Subscription)
@@ -218,4 +223,151 @@ async function handlePaymentFailure(invoice: Stripe.Invoice) {
     console.error('Error recording payment failure:', error)
     throw error
   }
+}
+
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+  const supabase = await useSupabaseServiceRole()
+  console.log('Checkout session completed:', session.id)
+  
+  try {
+    // Only handle anonymous checkouts (new user registration)
+    if (session.metadata?.anonymous_checkout !== 'true') {
+      console.log('Skipping non-anonymous checkout session')
+      return
+    }
+
+    const customerEmail = session.customer_details?.email
+    const planType = session.metadata?.plan_type
+    const stripeCustomerId = session.customer as string
+    
+    if (!customerEmail || !planType) {
+      console.error('Missing customer email or plan type in checkout session')
+      return
+    }
+
+    // Generate a temporary password for the user
+    const tempPassword = generateTempPassword()
+    
+    // Create Supabase user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: customerEmail,
+      password: tempPassword,
+      email_confirm: true, // Auto-confirm email since they completed payment
+      user_metadata: {
+        full_name: session.customer_details?.name || '',
+        created_via_stripe: true,
+        checkout_session_id: session.id,
+        plan_type: planType,
+        password_set: false
+      }
+    })
+
+    if (authError || !authData.user) {
+      console.error('Error creating Supabase user:', authError)
+      return
+    }
+
+    console.log('Created Supabase user:', authData.user.id)
+
+    // Generate setup token for password setup
+    const setupToken = generateSetupToken(authData.user.id, customerEmail, session.id)
+    
+    // Store setup token in user metadata
+    await supabase.auth.admin.updateUserById(authData.user.id, {
+      user_metadata: {
+        ...authData.user.user_metadata,
+        setup_token: setupToken
+      }
+    })
+
+    // Create account
+    const { data: accountData, error: accountError } = await supabase
+      .from('accounts')
+      .insert({
+        name: `${session.customer_details?.name || customerEmail}'s Account`,
+        slug: `user-${authData.user.id}`,
+        owner_id: authData.user.id,
+        billing_email: customerEmail,
+        status: 'trialing',
+        stripe_customer_id: stripeCustomerId,
+        onboarding_completed: false
+      })
+      .select()
+      .single()
+
+    if (accountError || !accountData) {
+      console.error('Error creating account:', accountError)
+      return
+    }
+
+    console.log('Created account:', accountData.id)
+
+    // Create account member record
+    await supabase
+      .from('account_members')
+      .insert({
+        account_id: accountData.id,
+        user_id: authData.user.id,
+        role: 'owner',
+        joined_at: new Date().toISOString()
+      })
+
+    // Get subscription details and create subscription record
+    if (session.subscription) {
+      const stripe = new Stripe(useRuntimeConfig().stripeSecretKey, {
+        apiVersion: '2024-06-20'
+      })
+      
+      const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
+      
+      await supabase
+        .from('subscriptions')
+        .insert({
+          stripe_subscription_id: subscription.id,
+          stripe_customer_id: stripeCustomerId,
+          account_id: accountData.id,
+          status: subscription.status,
+          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
+          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+          cancel_at_period_end: subscription.cancel_at_period_end,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+    }
+
+    // Send welcome email with login instructions
+    // TODO: Implement email sending with temporary password
+    console.log(`User created successfully: ${customerEmail} with temp password: ${tempPassword}`)
+    console.log('Account created successfully for checkout session:', session.id)
+    
+  } catch (error) {
+    console.error('Error handling checkout session completion:', error)
+    throw error
+  }
+}
+
+function generateTempPassword(): string {
+  // Generate a secure temporary password
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+  let password = ''
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+  return password
+}
+
+function generateSetupToken(userId: string, email: string, sessionId: string): string {
+  const config = useRuntimeConfig()
+  
+  const payload = {
+    userId,
+    email,
+    sessionId,
+    purpose: 'password_setup',
+    exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60) // 24 hours expiry
+  }
+
+  return jwt.sign(payload, config.nuxtSecretKey)
 }
