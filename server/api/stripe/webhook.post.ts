@@ -167,12 +167,20 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice, event: any) {
   console.log('Payment succeeded for invoice:', invoice.id)
   
   try {
+    // Get account_id from the customer
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('stripe_customer_id', invoice.customer as string)
+      .single()
+
     // Store invoice record
     await supabase
       .from('invoices')
       .upsert({
         stripe_invoice_id: invoice.id,
         stripe_customer_id: invoice.customer as string,
+        account_id: account?.id || null,
         subscription_id: invoice.subscription as string,
         amount_due: invoice.amount_due,
         amount_paid: invoice.amount_paid,
@@ -199,12 +207,20 @@ async function handlePaymentFailure(invoice: Stripe.Invoice, event: any) {
   console.log('Payment failed for invoice:', invoice.id)
   
   try {
+    // Get account_id from the customer
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('stripe_customer_id', invoice.customer as string)
+      .single()
+
     // Store invoice record
     await supabase
       .from('invoices')
       .upsert({
         stripe_invoice_id: invoice.id,
         stripe_customer_id: invoice.customer as string,
+        account_id: account?.id || null,
         subscription_id: invoice.subscription as string,
         amount_due: invoice.amount_due,
         amount_paid: invoice.amount_paid || 0,
