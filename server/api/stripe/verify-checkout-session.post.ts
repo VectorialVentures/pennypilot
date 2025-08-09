@@ -29,6 +29,7 @@ export default defineEventHandler(async (event) => {
 
     // Retrieve the checkout session
     const session = await stripe.checkout.sessions.retrieve(sessionId)
+    console.warn("SESSION", session);
 
     if (!session) {
       return {
@@ -56,13 +57,12 @@ export default defineEventHandler(async (event) => {
     // Get the user's setup token from Supabase using stored user_id in session metadata
     const supabase = await serverSupabaseServiceRole<Database>(event)
     let setupToken = null
-    
     const userId = session.metadata?.user_id
-    
+
     if (userId) {
       try {
         const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId)
-        
+        console.warn("GOT USER", user);
         if (userError) {
           console.error('Error getting user by ID:', userError)
         } else if (user?.raw_user_meta_data?.setup_token) {
