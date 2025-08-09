@@ -282,6 +282,23 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
       }
     })
 
+    // Update Stripe session metadata with user ID for easy retrieval
+    const stripe = new Stripe(useRuntimeConfig().stripeSecretKey, {
+      apiVersion: '2024-06-20'
+    })
+    
+    try {
+      await stripe.checkout.sessions.update(session.id, {
+        metadata: {
+          ...session.metadata,
+          user_id: authData.user.id
+        }
+      })
+    } catch (error) {
+      console.error('Error updating session metadata:', error)
+      // Don't fail the entire webhook for this
+    }
+
     // Create account
     const { data: accountData, error: accountError } = await supabase
       .from('accounts')

@@ -53,16 +53,23 @@ export default defineEventHandler(async (event) => {
       }
     }
 
-    // Get the user's setup token from Supabase
+    // Get the user's setup token from Supabase using stored user_id in session metadata
     const supabase = await serverSupabaseServiceRole<Database>(event)
     let setupToken = null
-
-    if (session.customer_details?.email) {
-      const { data: user } = await supabase.auth.admin.listUsers()
-      const matchingUser = user.users?.find(u => u.email === session.customer_details?.email)
-      
-      if (matchingUser && matchingUser.user_metadata?.setup_token) {
-        setupToken = matchingUser.user_metadata.setup_token
+    
+    const userId = session.metadata?.user_id
+    
+    if (userId) {
+      try {
+        const { data: user, error: userError } = await supabase.auth.admin.getUserById(userId)
+        
+        if (userError) {
+          console.error('Error getting user by ID:', userError)
+        } else if (user?.user_metadata?.setup_token) {
+          setupToken = user.user_metadata.setup_token
+        }
+      } catch (error) {
+        console.error('Error retrieving user setup token:', error)
       }
     }
 
