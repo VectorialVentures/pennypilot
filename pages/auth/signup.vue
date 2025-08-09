@@ -5,16 +5,16 @@
       <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
       <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
     </div>
-    
+
     <!-- Floating Gradient Orbs -->
     <div class="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow"></div>
     <div class="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-l from-accent-400/15 to-primary-400/15 rounded-full blur-3xl animate-float-reverse"></div>
-    
+
     <!-- Plan Selection Step -->
     <div v-if="currentStep === 'plan'" class="relative min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div class="max-w-7xl w-full">
         <div class="text-center mb-8">
-          <h1 class="text-4xl font-bold gradient-text">Welcome to PennyPilot</h1>
+          <h1 class="text-4xl font-bold gradient-text">Welcome to PennyPilot AI</h1>
           <p class="mt-4 text-lg text-white/70">Choose your plan to get started</p>
         </div>
         <PlanSelection @plan-selected="handlePlanSelection" :redirect-after-selection="false" />
@@ -26,8 +26,8 @@
       <div class="max-w-md w-full">
         <div class="glass-dark rounded-2xl p-8">
           <div class="text-center">
-            <button 
-              @click="currentStep = 'plan'" 
+            <button
+              @click="currentStep = 'plan'"
               class="text-sm text-primary-400 hover:text-primary-300 mb-4 flex items-center"
             >
               <ArrowLeftIcon class="h-4 w-4 mr-1" />
@@ -198,7 +198,7 @@ const error = ref('')
 onMounted(() => {
   const savedPlan = localStorage.getItem('selectedPlan')
   const urlPlan = new URLSearchParams(window.location.search).get('plan')
-  
+
   if (urlPlan && ['free', 'basic', 'premium'].includes(urlPlan)) {
     selectedPlan.value = urlPlan
     currentStep.value = 'account'
@@ -334,7 +334,7 @@ const redirectToCheckout = async (planType: 'basic' | 'premium', user: any) => {
   try {
     // Create account first
     const account = await createAccountWithPlan(planType, user)
-    
+
     // Detect user's currency based on locale or allow them to choose
     const userCurrency = getUserCurrency()
 
@@ -349,7 +349,7 @@ const redirectToCheckout = async (planType: 'basic' | 'premium', user: any) => {
 
     if (data?.sessionId) {
       // Redirect to Stripe Checkout
-      const stripe = await import('@stripe/stripe-js').then(m => 
+      const stripe = await import('@stripe/stripe-js').then(m =>
         m.loadStripe(useRuntimeConfig().public.stripePublishableKey)
       )
       if (stripe) {
@@ -365,10 +365,10 @@ const redirectToCheckout = async (planType: 'basic' | 'premium', user: any) => {
 const getUserCurrency = () => {
   // Detect user's currency based on locale
   const locale = navigator.language || 'en-US'
-  
+
   if (locale.includes('sv') || locale.includes('SE')) return 'sek'
   if (locale.includes('de') || locale.includes('fr') || locale.includes('es') || locale.includes('it')) return 'eur'
-  
+
   // Default to SEK since that's what you have configured
   return 'sek'
 }

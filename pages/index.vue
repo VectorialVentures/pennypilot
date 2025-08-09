@@ -26,7 +26,7 @@
               </div>
 
               <h1 class="text-5xl lg:text-7xl font-heading font-black gradient-text mb-6 animate-fade-in-up leading-tight">
-                PennyPilot
+                PennyPilot AI
               </h1>
 
               <p class="text-xl lg:text-2xl text-white/80 mb-8 leading-relaxed animate-slide-in-left" style="animation-delay: 0.2s;">

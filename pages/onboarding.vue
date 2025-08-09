@@ -126,7 +126,7 @@
               class="input-field"
               placeholder="e.g., Focus on long-term growth companies with strong fundamentals, dividend-paying stocks for steady income, or value investing in undervalued companies..."
             ></textarea>
-            <p class="text-sm text-gray-500 mt-2">
+            <p class="text-sm text-white/60 mt-2">
               This helps our AI understand your preferences when making recommendations
             </p>
           </div>
@@ -178,7 +178,7 @@
                 @keyup.enter="nextStep"
               />
             </div>
-            <p class="text-sm text-gray-500 mt-2">
+            <p class="text-sm text-white/60 mt-2">
               This represents cash that's available for future investments
             </p>
           </div>
