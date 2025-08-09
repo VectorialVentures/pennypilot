@@ -65,8 +65,8 @@ export default defineEventHandler(async (event) => {
         console.warn("GOT USER", user);
         if (userError) {
           console.error('Error getting user by ID:', userError)
-        } else if (user?.user_metadata?.setup_token) {
-          setupToken = user.user_metadata.setup_token
+        } else if (user?.user?.user_metadata?.setup_token) {
+          setupToken = user?.user?.user_metadata?.setup_token
         }
       } catch (error) {
         console.error('Error retrieving user setup token:', error)
