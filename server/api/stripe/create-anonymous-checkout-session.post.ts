@@ -25,28 +25,25 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Get price mappings by plan and currency
-    const priceMappings = {
-      basic: {
-        sek: 'price_1RtyCzPmwvHOz1q62Gb9J8bK', // 99 SEK
-        usd: 'price_1RtyK5PmwvHOz1q62vXPGDJz', // Will need to create
-        eur: 'price_1RtyK5PmwvHOz1q6FRtF4WFd'  // Will need to create
-      },
-      premium: {
-        sek: 'price_1RtyDiPmwvHOz1q6qpTh1MmT', // 249 SEK
-        usd: 'price_1RtyJgPmwvHOz1q61TYNauaV', // Will need to create
-        eur: 'price_1RtyJgPmwvHOz1q6zQvw0I4s'  // Will need to create
-      }
-    }
+    // Get price ID from subscription_plans table
+    const supabase = await useSupabaseServiceRole()
+    
+    const { data: subscriptionPlan, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('stripe_price_id, name')
+      .eq('name', plan)
+      .eq('currency', currency)
+      .eq('active', true)
+      .single()
 
-    const priceId = priceMappings[plan as keyof typeof priceMappings]?.[currency as 'sek' | 'usd' | 'eur']
-
-    if (!priceId) {
+    if (planError || !subscriptionPlan) {
       throw createError({
         statusCode: 400,
-        statusMessage: `Price not configured for ${plan} plan in ${currency.toUpperCase()}`
+        statusMessage: `No active ${plan} plan found for ${currency.toUpperCase()} currency`
       })
     }
+
+    const priceId = subscriptionPlan.stripe_price_id
 
     // Verify the price exists in Stripe
     let stripePrice

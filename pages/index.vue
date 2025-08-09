@@ -68,7 +68,7 @@
               <div class="relative">
                 <!-- Main Robot Image -->
                 <NuxtImg
-                  src="/images/pennypilot.png"
+                  src="/images/penny-pilot.png"
                   alt="PennyPilot AI Investment Assistant Robot"
                   class="w-full max-w-lg mx-auto h-auto animate-gentle-bounce"
                   width="512"
