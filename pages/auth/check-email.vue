@@ -6,7 +6,7 @@
           <NuxtImg
             src="/images/waiting-for-mail.png"
             alt="PennyPilot robot waiting for email"
-            class="mx-auto h-40 w-40 object-contain transition-transform duration-300 hover:scale-105"
+            class="mx-auto h-80 w-80 object-contain transition-transform duration-300 hover:scale-105"
             loading="eager"
           />
         </div>
