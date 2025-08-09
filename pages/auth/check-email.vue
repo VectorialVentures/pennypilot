@@ -3,26 +3,26 @@
     <div class="max-w-md w-full">
       <div class="glass rounded-2xl shadow-strong p-8 text-center">
         <div class="mb-6">
-          <NuxtImg 
-            src="/images/waiting-for-email.png" 
+          <NuxtImg
+            src="/images/waiting-for-mail.png"
             alt="PennyPilot robot waiting for email"
             class="mx-auto h-40 w-40 object-contain transition-transform duration-300 hover:scale-105"
             loading="eager"
           />
         </div>
-        
+
         <h2 class="text-2xl font-bold gradient-text mb-4">
           Check your email
         </h2>
-        
+
         <p class="text-secondary-600 mb-6">
           We've sent a confirmation link to <span class="font-semibold text-secondary-900">{{ email }}</span>
         </p>
-        
+
         <p class="text-sm text-secondary-500 mb-8">
           Click the link in the email to complete your registration and start using PennyPilot.
         </p>
-        
+
         <div class="space-y-4">
           <button
             @click="resendEmail"
@@ -43,27 +43,27 @@
               Resend confirmation email
             </span>
           </button>
-          
+
           <div v-if="resendSuccess" class="p-3 bg-accent-50 rounded-lg">
             <p class="text-sm text-accent-800">
               ✓ Confirmation email sent successfully!
             </p>
           </div>
-          
+
           <div v-if="resendError" class="p-3 bg-danger-50 rounded-lg">
             <p class="text-sm text-danger-800">
               {{ resendError }}
             </p>
           </div>
         </div>
-        
+
         <div class="mt-8 pt-6 border-t border-secondary-200">
           <p class="text-xs text-secondary-500 mb-4">
             Didn't receive the email? Check your spam folder or contact support.
           </p>
-          
-          <NuxtLink 
-            to="/auth/login" 
+
+          <NuxtLink
+            to="/auth/login"
             class="text-sm text-primary-600 hover:text-primary-500 font-medium"
           >
             ← Back to sign in
@@ -103,17 +103,17 @@ onMounted(() => {
 
 const resendEmail = async () => {
   if (resending.value || cooldownActive.value || !email.value) return
-  
+
   resending.value = true
   resendSuccess.value = false
   resendError.value = ''
-  
+
   try {
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: email.value
     })
-    
+
     if (error) {
       resendError.value = error.message
     } else {
@@ -130,10 +130,10 @@ const resendEmail = async () => {
 const startCooldown = () => {
   cooldownActive.value = true
   cooldownSeconds.value = 60
-  
+
   const interval = setInterval(() => {
     cooldownSeconds.value--
-    
+
     if (cooldownSeconds.value <= 0) {
       clearInterval(interval)
       cooldownActive.value = false

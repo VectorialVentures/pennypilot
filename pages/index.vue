@@ -15,7 +15,7 @@
       
       <!-- Hero Section -->
       <div class="relative">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
           <div class="grid lg:grid-cols-2 gap-12 items-center">
             <!-- Left Column - Content -->
             <div class="text-left lg:text-left">
@@ -107,8 +107,8 @@
       </div>
 
       <!-- Features Section -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="text-center mb-12">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="text-center mb-8">
           <h2 class="text-3xl md:text-4xl font-bold gradient-text mb-4">
             Intelligent Investment Management
           </h2>

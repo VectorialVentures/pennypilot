@@ -232,7 +232,8 @@ const handleSignup = async () => {
         data: {
           full_name: fullName.value,
           selected_plan: selectedPlan.value
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/auth/callback`
       }
     })
 
