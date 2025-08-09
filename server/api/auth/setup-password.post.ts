@@ -1,9 +1,11 @@
 import jwt from 'jsonwebtoken'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import type { Database } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const body = await readBody(event)
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
 
   try {
     const { token, password } = body

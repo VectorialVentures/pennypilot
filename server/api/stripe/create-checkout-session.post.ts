@@ -1,9 +1,11 @@
 import Stripe from 'stripe'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import type { Database } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
   const body = await readBody(event)
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
 
   if (!config.stripeSecretKey) {
     throw createError({
@@ -34,7 +36,7 @@ export default defineEventHandler(async (event) => {
     // If a plan type was provided instead of direct price ID
     if (plan && ['basic', 'premium'].includes(plan)) {
       // Get price ID from subscription_plans table
-      const supabase = await useSupabaseServiceRole()
+      const supabase = await serverSupabaseServiceRole<Database>(event)
       
       const { data: subscriptionPlan, error: planError } = await supabase
         .from('subscription_plans')
@@ -128,7 +130,7 @@ async function getCustomerEmail(event: any, accountId?: string): Promise<string 
   if (!accountId) return undefined
 
   try {
-    const supabase = await useSupabaseServiceRole()
+    const supabase = await serverSupabaseServiceRole<Database>(event)
     const { data } = await supabase
       .from('accounts')
       .select('billing_email')

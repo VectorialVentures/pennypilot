@@ -1,5 +1,7 @@
 import Stripe from 'stripe'
 import jwt from 'jsonwebtoken'
+import { serverSupabaseServiceRole } from '#supabase/server'
+import type { Database } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -75,7 +77,7 @@ export default defineEventHandler(async (event) => {
 })
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription) {
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Subscription updated:', subscription.id)
   
   try {
@@ -122,7 +124,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionCancellation(subscription: Stripe.Subscription) {
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Subscription cancelled:', subscription.id)
   
   try {
@@ -161,7 +163,7 @@ async function handleSubscriptionCancellation(subscription: Stripe.Subscription)
 }
 
 async function handlePaymentSuccess(invoice: Stripe.Invoice) {
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Payment succeeded for invoice:', invoice.id)
   
   try {
@@ -193,7 +195,7 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
 }
 
 async function handlePaymentFailure(invoice: Stripe.Invoice) {
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Payment failed for invoice:', invoice.id)
   
   try {
@@ -226,7 +228,7 @@ async function handlePaymentFailure(invoice: Stripe.Invoice) {
 }
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
-  const supabase = await useSupabaseServiceRole()
+  const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Checkout session completed:', session.id)
   
   try {
