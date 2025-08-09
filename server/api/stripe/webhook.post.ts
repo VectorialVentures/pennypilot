@@ -42,24 +42,24 @@ export default defineEventHandler(async (event) => {
   try {
     switch (stripeEvent.type) {
       case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(stripeEvent.data.object as Stripe.Checkout.Session)
+        await handleCheckoutSessionCompleted(stripeEvent.data.object as Stripe.Checkout.Session, event)
         break
       
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
-        await handleSubscriptionChange(stripeEvent.data.object as Stripe.Subscription)
+        await handleSubscriptionChange(stripeEvent.data.object as Stripe.Subscription, event)
         break
       
       case 'customer.subscription.deleted':
-        await handleSubscriptionCancellation(stripeEvent.data.object as Stripe.Subscription)
+        await handleSubscriptionCancellation(stripeEvent.data.object as Stripe.Subscription, event)
         break
       
       case 'invoice.payment_succeeded':
-        await handlePaymentSuccess(stripeEvent.data.object as Stripe.Invoice)
+        await handlePaymentSuccess(stripeEvent.data.object as Stripe.Invoice, event)
         break
       
       case 'invoice.payment_failed':
-        await handlePaymentFailure(stripeEvent.data.object as Stripe.Invoice)
+        await handlePaymentFailure(stripeEvent.data.object as Stripe.Invoice, event)
         break
       
       default:
@@ -76,7 +76,7 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-async function handleSubscriptionChange(subscription: Stripe.Subscription) {
+async function handleSubscriptionChange(subscription: Stripe.Subscription, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Subscription updated:', subscription.id)
   
@@ -107,11 +107,11 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
         stripe_customer_id: subscription.customer as string,
         account_id: accountId,
         status: subscription.status,
-        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-        trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-        cancel_at_period_end: subscription.cancel_at_period_end,
+        current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+        current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+        trial_start: (subscription as any).trial_start ? new Date((subscription as any).trial_start * 1000).toISOString() : null,
+        trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000).toISOString() : null,
+        cancel_at_period_end: (subscription as any).cancel_at_period_end || false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -123,7 +123,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
   }
 }
 
-async function handleSubscriptionCancellation(subscription: Stripe.Subscription) {
+async function handleSubscriptionCancellation(subscription: Stripe.Subscription, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Subscription cancelled:', subscription.id)
   
@@ -162,7 +162,7 @@ async function handleSubscriptionCancellation(subscription: Stripe.Subscription)
   }
 }
 
-async function handlePaymentSuccess(invoice: Stripe.Invoice) {
+async function handlePaymentSuccess(invoice: Stripe.Invoice, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Payment succeeded for invoice:', invoice.id)
   
@@ -194,7 +194,7 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice) {
   }
 }
 
-async function handlePaymentFailure(invoice: Stripe.Invoice) {
+async function handlePaymentFailure(invoice: Stripe.Invoice, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Payment failed for invoice:', invoice.id)
   
@@ -227,7 +227,7 @@ async function handlePaymentFailure(invoice: Stripe.Invoice) {
   }
 }
 
-async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) {
+async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Checkout session completed:', session.id)
   
@@ -329,11 +329,11 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
           stripe_customer_id: stripeCustomerId,
           account_id: accountData.id,
           status: subscription.status,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-          cancel_at_period_end: subscription.cancel_at_period_end,
+          current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+          current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+          trial_start: (subscription as any).trial_start ? new Date((subscription as any).trial_start * 1000).toISOString() : null,
+          trial_end: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000).toISOString() : null,
+          cancel_at_period_end: (subscription as any).cancel_at_period_end || false,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
