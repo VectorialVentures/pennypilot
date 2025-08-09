@@ -101,7 +101,7 @@ const createAccountWithPlan = async (plan: string, user: any) => {
       joined_at: new Date().toISOString()
     })
 
-  // Create initial subscription record
+  // Create initial subscription record only for free plan
   if (plan === 'free') {
     await supabase
       .from('subscriptions')
@@ -113,24 +113,8 @@ const createAccountWithPlan = async (plan: string, user: any) => {
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-  } else {
-    // Create pending subscription record for paid plans - will be updated by webhook
-    const trialEndDate = new Date()
-    trialEndDate.setDate(trialEndDate.getDate() + 14) // 14-day trial
-    
-    await supabase
-      .from('subscriptions')
-      .insert({
-        account_id: data.id,
-        status: 'trialing',
-        stripe_customer_id: '', // Will be populated by webhook
-        stripe_subscription_id: `pending_${data.id}`, // Temporary ID until Stripe creates it
-        trial_start: new Date().toISOString(),
-        trial_end: trialEndDate.toISOString(),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
   }
+  // For paid plans, subscription records will be created by Stripe webhook after checkout
 
   return data
 }

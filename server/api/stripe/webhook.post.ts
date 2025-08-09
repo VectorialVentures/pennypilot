@@ -92,46 +92,22 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription) {
       })
       .eq('id', accountId)
 
-    // Check if subscription already exists (from signup)
-    const { data: existingSubscription } = await supabase
+    // Create or update subscription record
+    await supabase
       .from('subscriptions')
-      .select('id, stripe_subscription_id')
-      .eq('account_id', accountId)
-      .single()
-
-    if (existingSubscription && existingSubscription.stripe_subscription_id.startsWith('pending_')) {
-      // Update existing pending subscription
-      await supabase
-        .from('subscriptions')
-        .update({
-          stripe_subscription_id: subscription.id,
-          stripe_customer_id: subscription.customer as string,
-          status: subscription.status,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingSubscription.id)
-    } else {
-      // Upsert subscription record (for existing customers or direct Stripe subscriptions)
-      await supabase
-        .from('subscriptions')
-        .upsert({
-          stripe_subscription_id: subscription.id,
-          stripe_customer_id: subscription.customer as string,
-          account_id: accountId,
-          status: subscription.status,
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
-          trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
-          cancel_at_period_end: subscription.cancel_at_period_end,
-          updated_at: new Date().toISOString()
-        })
-    }
+      .upsert({
+        stripe_subscription_id: subscription.id,
+        stripe_customer_id: subscription.customer as string,
+        account_id: accountId,
+        status: subscription.status,
+        current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+        current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+        trial_start: subscription.trial_start ? new Date(subscription.trial_start * 1000).toISOString() : null,
+        trial_end: subscription.trial_end ? new Date(subscription.trial_end * 1000).toISOString() : null,
+        cancel_at_period_end: subscription.cancel_at_period_end,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
 
     console.log('Subscription updated successfully for account:', accountId)
   } catch (error) {
