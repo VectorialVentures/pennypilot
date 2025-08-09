@@ -54,6 +54,7 @@ export default defineEventHandler(async (event) => {
       console.log('Retrieving price:', priceId)
       stripePrice = await stripe.prices.retrieve(priceId)
     } catch (error) {
+      console.error('Stripe price retrieval error:', error)
       throw createError({
         statusCode: 400,
         statusMessage: 'Invalid price ID ' + priceId + ' or price not found in Stripe'
