@@ -38,7 +38,7 @@
                     :class="getPlanBadgeClass(subscription.currentPlan.value.name)">
                 {{ subscription.currentPlan.value.name }}
               </span>
-              <div v-if="subscription.isTrialing.value && subscription.trialDaysLeft.value > 0" 
+              <div v-if="subscription.isTrialing.value && subscription.trialDaysLeft.value > 0"
                    class="text-xs text-orange-600 font-medium">
                 {{ subscription.trialDaysLeft.value }} days left
               </div>
@@ -60,7 +60,7 @@
               class="flex items-center space-x-2 p-2 rounded-lg hover:bg-secondary-50 transition-colors duration-200"
             >
               <img
-                :src="user?.user_metadata?.avatar_url || '/default-avatar.png'"
+                :src="user?.user_metadata?.avatar_url || '/default-avatar.svg'"
                 :alt="user?.user_metadata?.full_name || 'User'"
                 class="w-8 h-8 rounded-full"
               />
