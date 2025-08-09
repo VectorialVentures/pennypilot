@@ -20,7 +20,31 @@
     </div>
 
     <!-- Portfolio Summary Cards -->
+    <div v-if="loading.portfolios" class="flex items-center justify-center py-8">
+      <div class="flex items-center space-x-2">
+        <svg class="animate-spin h-6 w-6 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-sm text-secondary-600">Loading your portfolios...</span>
+      </div>
+    </div>
+    
+    <div v-else-if="portfolios.length === 0" class="text-center py-12">
+      <div class="mx-auto h-24 w-24 text-secondary-400 mb-4">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-secondary-900 mb-2">No portfolios yet</h3>
+      <p class="text-secondary-600 mb-4">Get started by creating your first investment portfolio</p>
+      <button @click="navigateTo('/onboarding')" class="btn-primary">
+        Create Your First Portfolio
+      </button>
+    </div>
+    
     <PortfolioSummary
+      v-else
       :total-value="dashboardData.totalValue"
       :total-gain-loss="dashboardData.totalGainLoss"
       :total-gain-loss-percentage="dashboardData.totalGainLossPercentage"
@@ -75,14 +99,13 @@
           <div
             :class="[
               'flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center',
-              recommendation.recommendation_type === 'buy' ? 'bg-accent-100 text-accent-600' :
-              recommendation.recommendation_type === 'sell' ? 'bg-danger-100 text-danger-600' :
-              recommendation.recommendation_type === 'hold' ? 'bg-primary-100 text-primary-600' :
-              'bg-secondary-100 text-secondary-600'
+              recommendation.action === 'buy' ? 'bg-accent-100 text-accent-600' :
+              recommendation.action === 'sell' ? 'bg-danger-100 text-danger-600' :
+              'bg-primary-100 text-primary-600'
             ]"
           >
             <component 
-              :is="getRecommendationIcon(recommendation.recommendation_type)" 
+              :is="getRecommendationIcon(recommendation.action)" 
               class="w-5 h-5" 
             />
           </div>
@@ -90,16 +113,16 @@
             <div class="flex items-center justify-between">
               <div>
                 <h4 class="text-sm font-medium text-secondary-900">
-                  {{ recommendation.recommendation_type.toUpperCase() }} {{ recommendation.asset_symbol }}
+                  {{ recommendation.action?.toUpperCase() }} {{ recommendation.securities?.symbol }}
                 </h4>
-                <p class="text-sm text-secondary-600 mt-1">{{ recommendation.reasoning }}</p>
+                <p class="text-sm text-secondary-600 mt-1">{{ recommendation.description }}</p>
               </div>
               <div class="text-right">
-                <div class="text-sm font-medium text-secondary-900">
-                  {{ Math.round(recommendation.confidence_score) }}% confidence
+                <div v-if="recommendation.amount" class="text-sm font-medium text-secondary-900">
+                  ${{ recommendation.amount.toFixed(2) }}
                 </div>
-                <div v-if="recommendation.target_price" class="text-xs text-secondary-500">
-                  Target: ${{ recommendation.target_price.toFixed(2) }}
+                <div class="text-xs text-secondary-500">
+                  {{ formatDate(recommendation.created_at) }}
                 </div>
               </div>
             </div>
@@ -161,9 +184,12 @@ definePageMeta({
 })
 
 const user = useSupabaseUser()
+const supabase = useSupabaseClient()
 const profile = ref(null)
+const portfolios = ref([])
 const loading = ref({
   profile: false,
+  portfolios: true,
   recommendations: false
 })
 
@@ -171,63 +197,93 @@ const showAddAssetModal = ref(false)
 const selectedPortfolioId = ref<string | null>(null)
 const recommendationsSection = ref<HTMLElement>()
 
-// Mock data for demonstration
-const dashboardData = ref({
-  totalValue: 127840,
-  totalGainLoss: 12840,
-  totalGainLossPercentage: 11.15,
-  numberOfPositions: 18,
-  numberOfPortfolios: 3,
-  performanceScore: 87
+// Calculate dashboard data from real portfolios with current market prices
+const dashboardData = computed(() => {
+  if (!portfolios.value.length) {
+    return {
+      totalValue: 0,
+      totalGainLoss: 0,
+      totalGainLossPercentage: 0,
+      numberOfPositions: 0,
+      numberOfPortfolios: 0,
+      performanceScore: 0,
+      currentMarketValue: 0,
+      bookValue: 0
+    }
+  }
+
+  let currentMarketValue = 0
+  let bookValue = 0
+  let totalPositions = 0
+  let totalLiquidFunds = 0
+  let historicalGainLoss = 0
+  
+  portfolios.value.forEach(portfolio => {
+    // Add liquid funds
+    totalLiquidFunds += portfolio.liquid_funds || 0
+    
+    // Calculate securities values
+    if (portfolio.portfolio_securities) {
+      portfolio.portfolio_securities.forEach(security => {
+        totalPositions++
+        
+        // Book value (what was paid for the securities)
+        const securityBookValue = security.worth || 0
+        bookValue += securityBookValue
+        
+        // Current market value (current price * amount held)
+        if (security.current_price && security.amount) {
+          currentMarketValue += security.current_price * security.amount
+        } else {
+          // Fallback to book value if no current price available
+          currentMarketValue += securityBookValue
+        }
+      })
+    }
+    
+    // Calculate historical performance from portfolio_history
+    if (portfolio.portfolio_history && portfolio.portfolio_history.length >= 2) {
+      const latestValue = portfolio.portfolio_history[0]?.value || 0
+      const previousValue = portfolio.portfolio_history[1]?.value || 0
+      
+      if (previousValue > 0) {
+        historicalGainLoss += latestValue - previousValue
+      }
+    }
+  })
+  
+  // Add liquid funds to totals
+  const totalCurrentValue = currentMarketValue + totalLiquidFunds
+  const totalBookValue = bookValue + totalLiquidFunds
+  
+  // Calculate gain/loss based on current market value vs book value
+  const totalGainLoss = totalCurrentValue - totalBookValue
+  const totalGainLossPercentage = totalBookValue > 0 ? (totalGainLoss / totalBookValue) * 100 : 0
+  
+  // Calculate performance score based on gain/loss percentage
+  let performanceScore = 50 // Base score
+  if (totalGainLossPercentage > 0) {
+    performanceScore = Math.min(100, 50 + (totalGainLossPercentage * 2))
+  } else {
+    performanceScore = Math.max(0, 50 + (totalGainLossPercentage * 2))
+  }
+  
+  return {
+    totalValue: totalCurrentValue,
+    totalGainLoss,
+    totalGainLossPercentage,
+    numberOfPositions: totalPositions,
+    numberOfPortfolios: portfolios.value.length,
+    performanceScore: Math.round(performanceScore),
+    currentMarketValue,
+    bookValue: totalBookValue,
+    historicalGainLoss
+  }
 })
 
-const recommendations = ref([
-  {
-    id: '1',
-    asset_symbol: 'AAPL',
-    recommendation_type: 'buy' as const,
-    confidence_score: 87,
-    reasoning: 'Strong earnings growth and technical breakout pattern suggest upward momentum',
-    target_price: 195.50
-  },
-  {
-    id: '2',
-    asset_symbol: 'TSLA',
-    recommendation_type: 'sell' as const,
-    confidence_score: 73,
-    reasoning: 'Overvalued based on current metrics, consider taking profits',
-    target_price: null
-  },
-  {
-    id: '3',
-    asset_symbol: 'SPY',
-    recommendation_type: 'hold' as const,
-    confidence_score: 92,
-    reasoning: 'Maintain position in this diversified ETF for stability',
-    target_price: 485.00
-  }
-])
+const recommendations = ref([])
 
-const recentActivity = ref([
-  {
-    id: '1',
-    description: 'Added 10 shares of NVDA to Tech Portfolio',
-    timestamp: '2 hours ago',
-    icon: PlusIcon
-  },
-  {
-    id: '2',
-    description: 'Sold 5 shares of META from Growth Portfolio',
-    timestamp: '1 day ago',
-    icon: ArrowsRightLeftIcon
-  },
-  {
-    id: '3',
-    description: 'Rebalanced Conservative Portfolio',
-    timestamp: '3 days ago',
-    icon: ArrowsRightLeftIcon
-  }
-])
+const recentActivity = ref([])
 
 const getRecommendationIcon = (type: string) => {
   switch (type) {
@@ -283,8 +339,177 @@ const loadProfile = async () => {
   }
 }
 
-onMounted(() => {
-  loadProfile()
+// Load user portfolios with securities, history, and current prices
+const loadPortfolios = async () => {
+  if (!user.value) return
+  
+  loading.value.portfolios = true
+  try {
+    // Load portfolios with securities and their latest prices
+    const { data, error } = await supabase
+      .from('portfolios')
+      .select(`
+        *,
+        portfolio_securities (
+          *,
+          securities (
+            id,
+            symbol,
+            name,
+            exchange,
+            security_prices (
+              price,
+              date
+            )
+          )
+        ),
+        portfolio_history (
+          date,
+          value
+        )
+      `)
+      .eq('user_id', user.value.id)
+      .order('created_at', { ascending: false })
+    
+    if (error) throw error
+    
+    // Process portfolios to get latest security prices
+    const portfoliosWithCurrentPrices = await Promise.all((data || []).map(async (portfolio) => {
+      if (portfolio.portfolio_securities) {
+        // Get current prices for each security
+        const securitiesWithPrices = await Promise.all(portfolio.portfolio_securities.map(async (ps) => {
+          // Get the latest price for this security
+          const { data: latestPrice } = await supabase
+            .from('security_prices')
+            .select('price, date')
+            .eq('security_id', ps.security_id)
+            .order('date', { ascending: false })
+            .limit(1)
+            .single()
+          
+          return {
+            ...ps,
+            current_price: latestPrice?.price || null,
+            price_date: latestPrice?.date || null
+          }
+        }))
+        
+        portfolio.portfolio_securities = securitiesWithPrices
+      }
+      
+      // Sort portfolio history by date (most recent first)
+      if (portfolio.portfolio_history) {
+        portfolio.portfolio_history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      }
+      
+      return portfolio
+    }))
+    
+    portfolios.value = portfoliosWithCurrentPrices
+    
+    // Set default selected portfolio to the first one
+    if (portfolios.value.length > 0 && !selectedPortfolioId.value) {
+      selectedPortfolioId.value = portfolios.value[0].id
+    }
+  } catch (error) {
+    console.error('Error loading portfolios:', error)
+  } finally {
+    loading.value.portfolios = false
+  }
+}
+
+// Load recommendations
+const loadRecommendations = async () => {
+  if (!user.value || !portfolios.value.length) return
+  
+  loading.value.recommendations = true
+  try {
+    const portfolioIds = portfolios.value.map(p => p.id)
+    
+    const { data, error } = await supabase
+      .from('portfolio_recommendation')
+      .select(`
+        *,
+        securities (
+          symbol,
+          name
+        )
+      `)
+      .in('portfolio_id', portfolioIds)
+      .order('created_at', { ascending: false })
+      .limit(5)
+    
+    if (error) throw error
+    recommendations.value = data || []
+  } catch (error) {
+    console.error('Error loading recommendations:', error)
+  } finally {
+    loading.value.recommendations = false
+  }
+}
+
+// Load recent activity from transactions
+const loadRecentActivity = async () => {
+  if (!user.value || !portfolios.value.length) return
+  
+  try {
+    const portfolioIds = portfolios.value.map(p => p.id)
+    
+    const { data, error } = await supabase
+      .from('portfolio_transactions')
+      .select(`
+        *,
+        securities (
+          symbol,
+          name
+        ),
+        portfolios (
+          name
+        )
+      `)
+      .in('portfolio_id', portfolioIds)
+      .order('created_at', { ascending: false })
+      .limit(10)
+    
+    if (error) throw error
+    
+    // Transform transactions into activity format
+    const activities = (data || []).map(transaction => ({
+      id: transaction.id,
+      description: `${transaction.action === 'buy' ? 'Bought' : 'Sold'} ${transaction.amount} shares of ${transaction.securities?.symbol || 'Unknown'} in ${transaction.portfolios?.name || 'Portfolio'}`,
+      timestamp: formatDate(transaction.created_at),
+      icon: transaction.action === 'buy' ? PlusIcon : ArrowsRightLeftIcon
+    }))
+    
+    recentActivity.value = activities
+  } catch (error) {
+    console.error('Error loading recent activity:', error)
+  }
+}
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInMs = now.getTime() - date.getTime()
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+  const diffInDays = Math.floor(diffInHours / 24)
+  
+  if (diffInHours < 1) {
+    return 'Just now'
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`
+  } else if (diffInDays < 7) {
+    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`
+  } else {
+    return date.toLocaleDateString()
+  }
+}
+
+onMounted(async () => {
+  await loadProfile()
+  await loadPortfolios()
+  await loadRecommendations()
+  await loadRecentActivity()
 })
 
 useHead({

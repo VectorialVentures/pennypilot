@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Landing Page Layout (No Auth Required) -->
-    <div class="min-h-screen relative overflow-hidden">
+    <div class="relative overflow-hidden">
       <!-- Animated Background Gradients -->
       <div class="absolute inset-0 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <div class="absolute inset-0 bg-gradient-to-tr from-primary-100/20 via-transparent to-accent-100/20 animate-gradient-shift"></div>
@@ -15,7 +15,7 @@
       
       <!-- Hero Section -->
       <div class="relative">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
           <div class="grid lg:grid-cols-2 gap-12 items-center">
             <!-- Left Column - Content -->
             <div class="text-left lg:text-left">
@@ -107,8 +107,8 @@
       </div>
 
       <!-- Features Section -->
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div class="text-center mb-16">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div class="text-center mb-12">
           <h2 class="text-3xl md:text-4xl font-bold gradient-text mb-4">
             Intelligent Investment Management
           </h2>
@@ -155,7 +155,7 @@
         <!-- Background Animation -->
         <div class="absolute inset-0 bg-gradient-to-r from-primary-700/50 to-accent-700/50 animate-gradient-shift"></div>
         
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center relative">
           <div class="animate-fade-in-up">
             <h2 class="text-4xl md:text-5xl font-bold mb-6 leading-tight">
               Ready to revolutionize your investments?

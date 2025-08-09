@@ -1,10 +1,35 @@
 <template>
-  <div class="min-h-screen gradient-bg flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full">
-      <div class="glass rounded-2xl shadow-strong p-8">
+  <div class="min-h-screen gradient-bg">
+    <!-- Plan Selection Step -->
+    <div v-if="currentStep === 'plan'" class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-7xl w-full">
+        <div class="text-center mb-8">
+          <h1 class="text-4xl font-bold gradient-text">Welcome to PennyPilot</h1>
+          <p class="mt-4 text-lg text-secondary-600">Choose your plan to get started</p>
+        </div>
+        <PlanSelection @plan-selected="handlePlanSelection" :redirect-after-selection="false" />
+      </div>
+    </div>
+
+    <!-- Account Creation Step -->
+    <div v-else class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div class="max-w-md w-full">
+        <div class="glass rounded-2xl shadow-strong p-8">
         <div class="text-center">
+          <button 
+            @click="currentStep = 'plan'" 
+            class="text-sm text-primary-600 hover:text-primary-500 mb-4 flex items-center"
+          >
+            <ArrowLeftIcon class="h-4 w-4 mr-1" />
+            Back to plans
+          </button>
           <h2 class="text-3xl font-bold gradient-text">Create your account</h2>
-          <p class="mt-2 text-sm text-secondary-600">Join PennyPilot and start your investment journey</p>
+          <p class="mt-2 text-sm text-secondary-600">
+            <span v-if="selectedPlan">
+              Selected: <span class="font-semibold capitalize">{{ selectedPlan }}</span> plan
+            </span>
+            <span v-else>Join PennyPilot and start your investment journey</span>
+          </p>
         </div>
 
         <form @submit.prevent="handleSignup" class="mt-8 space-y-6">
@@ -129,12 +154,15 @@
             </NuxtLink>
           </p>
         </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ArrowLeftIcon } from '@heroicons/vue/24/outline'
+
 definePageMeta({
   layout: false,
   auth: false
@@ -143,6 +171,11 @@ definePageMeta({
 const supabase = useSupabaseClient()
 const router = useRouter()
 
+// Multi-step signup state
+const currentStep = ref<'plan' | 'account'>('plan')
+const selectedPlan = ref<string>('')
+
+// Form fields
 const fullName = ref('')
 const email = ref('')
 const password = ref('')
@@ -150,6 +183,27 @@ const confirmPassword = ref('')
 const agreeToTerms = ref(false)
 const loading = ref(false)
 const error = ref('')
+
+// Check for pre-selected plan from localStorage or URL
+onMounted(() => {
+  const savedPlan = localStorage.getItem('selectedPlan')
+  const urlPlan = new URLSearchParams(window.location.search).get('plan')
+  
+  if (urlPlan && ['free', 'basic', 'premium'].includes(urlPlan)) {
+    selectedPlan.value = urlPlan
+    currentStep.value = 'account'
+    localStorage.removeItem('selectedPlan')
+  } else if (savedPlan && ['free', 'basic', 'premium'].includes(savedPlan)) {
+    selectedPlan.value = savedPlan
+    currentStep.value = 'account'
+    localStorage.removeItem('selectedPlan')
+  }
+})
+
+const handlePlanSelection = (plan: string) => {
+  selectedPlan.value = plan
+  currentStep.value = 'account'
+}
 
 const isFormValid = computed(() => {
   return fullName.value.length > 0 &&
@@ -163,8 +217,6 @@ const handleSignup = async () => {
   loading.value = true
   error.value = ''
 
-  console.log('Starting signup process...')
-
   if (password.value !== confirmPassword.value) {
     error.value = 'Passwords do not match'
     loading.value = false
@@ -172,34 +224,33 @@ const handleSignup = async () => {
   }
 
   try {
-    console.log('Attempting Supabase signup...')
+    // Step 1: Create user account
     const { data, error: signupError } = await supabase.auth.signUp({
       email: email.value,
       password: password.value,
       options: {
         data: {
-          full_name: fullName.value
+          full_name: fullName.value,
+          selected_plan: selectedPlan.value
         }
       }
     })
 
-    console.log('Signup response:', { data, signupError })
-
     if (signupError) {
       error.value = signupError.message
-      console.error('Signup error:', signupError)
       return
     }
 
-    if (data.user && !data.session) {
-      // Email confirmation required
-      console.log('Email confirmation required')
-      error.value = 'Please check your email and click the confirmation link to complete registration.'
-      // Don't redirect, just show message
-    } else if (data.session) {
+    if (data.user && data.session) {
       // Auto sign-in successful
-      console.log('Auto sign-in successful, redirecting to dashboard')
-      await router.push('/dashboard')
+      await handlePostSignup(data.user, data.session)
+    } else if (data.user && !data.session) {
+      // Email confirmation required - redirect to check email page
+      await router.push({
+        path: '/auth/check-email',
+        query: { email: email.value }
+      })
+      return
     }
   } catch (err) {
     error.value = 'An unexpected error occurred'
@@ -207,6 +258,124 @@ const handleSignup = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handlePostSignup = async (user: any, session: any) => {
+  try {
+    if (selectedPlan.value === 'free') {
+      // Create free account directly
+      await createAccountWithPlan('free', user)
+      await router.push('/onboarding')
+    } else {
+      // Redirect to checkout for paid plans
+      await redirectToCheckout(selectedPlan.value as 'basic' | 'premium', user)
+    }
+  } catch (error) {
+    console.error('Post-signup error:', error)
+    error.value = 'Account created but there was an issue setting up your plan. Please contact support.'
+  }
+}
+
+const createAccountWithPlan = async (plan: string, user: any) => {
+  const { data, error } = await supabase
+    .from('accounts')
+    .insert({
+      name: `${user.user_metadata?.full_name || user.email}'s Account`,
+      slug: `user-${user.id}`,
+      owner_id: user.id,
+      billing_email: user.email,
+      status: plan === 'free' ? 'active' : 'trialing'
+    })
+    .select()
+    .single()
+
+  if (error) throw error
+
+  // Create account member record
+  await supabase
+    .from('account_members')
+    .insert({
+      account_id: data.id,
+      user_id: user.id,
+      role: 'owner',
+      joined_at: new Date().toISOString()
+    })
+
+  // Create initial subscription record
+  if (plan === 'free') {
+    await supabase
+      .from('subscriptions')
+      .insert({
+        account_id: data.id,
+        status: 'active',
+        stripe_customer_id: '', // Will be populated if they upgrade
+        stripe_subscription_id: `free_${data.id}`, // Unique identifier for free plan
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+  } else {
+    // Create pending subscription record for paid plans - will be updated by webhook
+    const trialEndDate = new Date()
+    trialEndDate.setDate(trialEndDate.getDate() + 14) // 14-day trial
+    
+    await supabase
+      .from('subscriptions')
+      .insert({
+        account_id: data.id,
+        status: 'trialing',
+        stripe_customer_id: '', // Will be populated by webhook
+        stripe_subscription_id: `pending_${data.id}`, // Temporary ID until Stripe creates it
+        trial_start: new Date().toISOString(),
+        trial_end: trialEndDate.toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+  }
+
+  return data
+}
+
+const redirectToCheckout = async (planType: 'basic' | 'premium', user: any) => {
+  try {
+    // Create account first
+    const account = await createAccountWithPlan(planType, user)
+    
+    // Detect user's currency based on locale or allow them to choose
+    const userCurrency = getUserCurrency()
+
+    const { data } = await $fetch('/api/stripe/create-checkout-session', {
+      method: 'POST',
+      body: {
+        plan: planType,
+        currency: userCurrency,
+        accountId: account.id
+      }
+    })
+
+    if (data?.sessionId) {
+      // Redirect to Stripe Checkout
+      const stripe = await import('@stripe/stripe-js').then(m => 
+        m.loadStripe(useRuntimeConfig().public.stripePublishableKey)
+      )
+      if (stripe) {
+        await stripe.redirectToCheckout({ sessionId: data.sessionId })
+      }
+    }
+  } catch (error) {
+    console.error('Checkout redirect error:', error)
+    throw error
+  }
+}
+
+const getUserCurrency = () => {
+  // Detect user's currency based on locale
+  const locale = navigator.language || 'en-US'
+  
+  if (locale.includes('sv') || locale.includes('SE')) return 'sek'
+  if (locale.includes('de') || locale.includes('fr') || locale.includes('es') || locale.includes('it')) return 'eur'
+  
+  // Default to SEK since that's what you have configured
+  return 'sek'
 }
 
 const handleGoogleSignup = async () => {

@@ -31,6 +31,20 @@
 
         <!-- User Menu -->
         <div class="flex items-center space-x-4">
+          <!-- Plan Badge -->
+          <div v-if="subscription.currentPlan.value" class="hidden sm:block">
+            <div class="flex items-center space-x-2">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    :class="getPlanBadgeClass(subscription.currentPlan.value.name)">
+                {{ subscription.currentPlan.value.name }}
+              </span>
+              <div v-if="subscription.isTrialing.value && subscription.trialDaysLeft.value > 0" 
+                   class="text-xs text-orange-600 font-medium">
+                {{ subscription.trialDaysLeft.value }} days left
+              </div>
+            </div>
+          </div>
+
           <!-- Notifications -->
           <button
             class="p-2 text-secondary-600 hover:text-primary-600 transition-colors duration-200"
@@ -149,8 +163,23 @@ const navigation = [
 
 const userMenuItems = [
   { name: 'Profile', href: '/profile', icon: UserIcon },
-  { name: 'Billing', href: '/billing', icon: CreditCardIcon },
+  { name: 'Subscription', href: '/subscription', icon: CreditCardIcon },
 ]
+
+const subscription = useSubscription()
+
+const getPlanBadgeClass = (planName: string) => {
+  switch (planName?.toLowerCase()) {
+    case 'free':
+      return 'bg-gray-100 text-gray-800'
+    case 'basic':
+      return 'bg-blue-100 text-blue-800'
+    case 'premium':
+      return 'bg-purple-100 text-purple-800'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
 
 const handleSignOut = async () => {
   showUserMenu.value = false

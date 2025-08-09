@@ -56,13 +56,13 @@ export type Database = {
           id: string
           metadata: Json | null
           name: string
-          onboarding_completed: boolean | null
-          onboarding_completed_at: string | null
           owner_id: string | null
           slug: string
           status: string | null
           stripe_customer_id: string | null
           updated_at: string | null
+          onboarding_completed: boolean | null
+          onboarding_completed_at: string | null
         }
         Insert: {
           billing_email?: string | null
@@ -70,13 +70,13 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name: string
-          onboarding_completed?: boolean | null
-          onboarding_completed_at?: string | null
           owner_id?: string | null
           slug: string
           status?: string | null
           stripe_customer_id?: string | null
           updated_at?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
         }
         Update: {
           billing_email?: string | null
@@ -84,13 +84,13 @@ export type Database = {
           id?: string
           metadata?: Json | null
           name?: string
-          onboarding_completed?: boolean | null
-          onboarding_completed_at?: string | null
           owner_id?: string | null
           slug?: string
           status?: string | null
           stripe_customer_id?: string | null
           updated_at?: string | null
+          onboarding_completed?: boolean | null
+          onboarding_completed_at?: string | null
         }
         Relationships: []
       }
@@ -166,110 +166,78 @@ export type Database = {
           },
         ]
       }
-      portfolio_history: {
+      portfolio: {
         Row: {
           created_at: string
-          date: string | null
           id: string
-          portfolio_id: string | null
-          value: number | null
-        }
-        Insert: {
-          created_at?: string
-          date?: string | null
-          id?: string
-          portfolio_id?: string | null
-          value?: number | null
-        }
-        Update: {
-          created_at?: string
-          date?: string | null
-          id?: string
-          portfolio_id?: string | null
-          value?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_history_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      portfolio_recommendation: {
-        Row: {
-          action: Database["public"]["Enums"]["portfolio_action"] | null
-          amount: number | null
-          created_at: string
-          date: string | null
+          name: string
+          updated_at: string | null
+          user_id: string
+          account_id: string | null
           description: string | null
-          id: string
-          portfolio_id: string | null
-          security_id: string | null
+          risk_level: Database["public"]["Enums"]["risk_level"] | null
+          sectors: Json | null
+          liquid_funds: number | null
+          total_value: number | null
+          is_default: boolean | null
         }
         Insert: {
-          action?: Database["public"]["Enums"]["portfolio_action"] | null
-          amount?: number | null
           created_at?: string
-          date?: string | null
-          description?: string | null
           id?: string
-          portfolio_id?: string | null
-          security_id?: string | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+          account_id?: string | null
+          description?: string | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          sectors?: Json | null
+          liquid_funds?: number | null
+          total_value?: number | null
+          is_default?: boolean | null
         }
         Update: {
-          action?: Database["public"]["Enums"]["portfolio_action"] | null
-          amount?: number | null
           created_at?: string
-          date?: string | null
-          description?: string | null
           id?: string
-          portfolio_id?: string | null
-          security_id?: string | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+          account_id?: string | null
+          description?: string | null
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          sectors?: Json | null
+          liquid_funds?: number | null
+          total_value?: number | null
+          is_default?: boolean | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_recommendation_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "portfolio_recommendation_security_id_fkey"
-            columns: ["security_id"]
-            isOneToOne: false
-            referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       portfolio_securities: {
         Row: {
-          amount: number | null
           created_at: string
           id: string
           portfolio_id: string
           security_id: string | null
-          worth: number | null
+          shares: number | null
+          average_price: number | null
+          purchase_date: string | null
         }
         Insert: {
-          amount?: number | null
           created_at?: string
           id?: string
           portfolio_id: string
           security_id?: string | null
-          worth?: number | null
+          shares?: number | null
+          average_price?: number | null
+          purchase_date?: string | null
         }
         Update: {
-          amount?: number | null
           created_at?: string
           id?: string
           portfolio_id?: string
           security_id?: string | null
-          worth?: number | null
+          shares?: number | null
+          average_price?: number | null
+          purchase_date?: string | null
         }
         Relationships: [
           {
@@ -283,157 +251,46 @@ export type Database = {
             foreignKeyName: "portfolio_assets_portfolio_id_fkey"
             columns: ["portfolio_id"]
             isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      portfolio_transactions: {
-        Row: {
-          action: Database["public"]["Enums"]["portfolio_action"] | null
-          amount: number | null
-          created_at: string
-          date: string | null
-          fee: number | null
-          id: string
-          portfolio_id: string | null
-          portfolio_recommendation_id: string | null
-          price: number | null
-          security_id: string | null
-        }
-        Insert: {
-          action?: Database["public"]["Enums"]["portfolio_action"] | null
-          amount?: number | null
-          created_at?: string
-          date?: string | null
-          fee?: number | null
-          id?: string
-          portfolio_id?: string | null
-          portfolio_recommendation_id?: string | null
-          price?: number | null
-          security_id?: string | null
-        }
-        Update: {
-          action?: Database["public"]["Enums"]["portfolio_action"] | null
-          amount?: number | null
-          created_at?: string
-          date?: string | null
-          fee?: number | null
-          id?: string
-          portfolio_id?: string | null
-          portfolio_recommendation_id?: string | null
-          price?: number | null
-          security_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_transactions_portfolio_recommendation_id_fkey"
-            columns: ["portfolio_recommendation_id"]
-            isOneToOne: false
-            referencedRelation: "portfolio_recommendation"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "transactions_security_id_fkey"
-            columns: ["security_id"]
-            isOneToOne: false
-            referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      portfolios: {
-        Row: {
-          account_id: string | null
-          created_at: string
-          description: string | null
-          id: string
-          is_default: boolean | null
-          liquid_funds: number | null
-          name: string
-          risk_level: Database["public"]["Enums"]["risk_level"] | null
-          sectors: Json | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          account_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_default?: boolean | null
-          liquid_funds?: number | null
-          name: string
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          sectors?: Json | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          account_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_default?: boolean | null
-          liquid_funds?: number | null
-          name?: string
-          risk_level?: Database["public"]["Enums"]["risk_level"] | null
-          sectors?: Json | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolios_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
+            referencedRelation: "portfolio"
             referencedColumns: ["id"]
           },
         ]
       }
       securities: {
         Row: {
-          asset_type: string | null
           created_at: string
           currency: string | null
-          exchange: string | null
           id: string
           industry: string | null
           name: string | null
           sector: string | null
           symbol: string
+          asset_type: string | null
+          exchange: string | null
           updated_at: string | null
         }
         Insert: {
-          asset_type?: string | null
           created_at?: string
           currency?: string | null
-          exchange?: string | null
           id?: string
           industry?: string | null
           name?: string | null
           sector?: string | null
           symbol: string
+          asset_type: string | null
+          exchange: string | null
           updated_at?: string | null
         }
         Update: {
-          asset_type?: string | null
           created_at?: string
           currency?: string | null
-          exchange?: string | null
           id?: string
           industry?: string | null
           name?: string | null
           sector?: string | null
           symbol?: string
+          asset_type: string | null
+          exchange: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -688,7 +545,6 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      portfolio_action: "buy" | "sell"
       risk_level: "conservative" | "moderate" | "aggressive"
     }
     CompositeTypes: {
@@ -817,8 +673,11 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      portfolio_action: ["buy", "sell"],
-      risk_level: ["conservative", "moderate", "aggressive"],
+      risk_level: {
+        conservative: "conservative",
+        moderate: "moderate", 
+        aggressive: "aggressive"
+      }
     },
   },
 } as const

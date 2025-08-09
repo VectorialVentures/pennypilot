@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
+  const body = await readBody(event)
   
   if (!config.stripeSecretKey) {
     throw createError({
@@ -15,35 +16,29 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    // This would typically get the customer ID from the authenticated user's profile
-    const customerId = await getCustomerId(event)
+    const { customerId } = body
     
     if (!customerId) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Customer not found'
+        statusMessage: 'Customer ID is required'
       })
     }
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${getHeader(event, 'origin')}/dashboard`
+      return_url: `${getHeader(event, 'origin')}/subscription`
     })
 
     return {
       url: session.url
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Stripe portal session error:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to create portal session'
+      statusMessage: error.message || 'Failed to create portal session'
     })
   }
 })
 
-async function getCustomerId(event: any): Promise<string | null> {
-  // This would typically get the Stripe customer ID from the user's profile in Supabase
-  // For now, we'll return null to indicate no customer found
-  return null
-}

@@ -1,0 +1,7 @@
+### Test sync-securities API endpoint
+POST http://localhost:3002/api/sync-securities
+Content-Type: application/json
+
+### Alternative with verbose output
+POST http://localhost:3002/api/sync-securities
+Content-Type: application/json
