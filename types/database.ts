@@ -60,7 +60,7 @@ export type Database = {
           onboarding_completed_at: string | null
           owner_id: string | null
           slug: string
-          status: string | null
+          status: Database["public"]["Enums"]["account_status"] | null
           stripe_customer_id: string | null
           updated_at: string | null
         }
@@ -74,7 +74,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           owner_id?: string | null
           slug: string
-          status?: string | null
+          status?: Database["public"]["Enums"]["account_status"] | null
           stripe_customer_id?: string | null
           updated_at?: string | null
         }
@@ -88,7 +88,7 @@ export type Database = {
           onboarding_completed_at?: string | null
           owner_id?: string | null
           slug?: string
-          status?: string | null
+          status?: Database["public"]["Enums"]["account_status"] | null
           stripe_customer_id?: string | null
           updated_at?: string | null
         }
@@ -685,9 +685,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_account_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      user_owns_portfolio: {
+        Args: { portfolio_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
+      account_status:
+        | "active"
+        | "inactive"
+        | "suspended"
+        | "trialing"
+        | "cancelled"
       portfolio_action: "buy" | "sell"
       risk_level: "conservative" | "moderate" | "aggressive"
     }
@@ -817,6 +830,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      account_status: [
+        "active",
+        "inactive",
+        "suspended",
+        "trialing",
+        "cancelled",
+      ],
       portfolio_action: ["buy", "sell"],
       risk_level: ["conservative", "moderate", "aggressive"],
     },
