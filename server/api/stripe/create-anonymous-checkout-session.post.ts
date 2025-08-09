@@ -93,8 +93,7 @@ export default defineEventHandler(async (event) => {
         currency: currency,
         anonymous_checkout: 'true'
       },
-      // Collect customer information during checkout
-      customer_creation: 'always',
+      // For anonymous checkout, let Stripe create customer automatically
       billing_address_collection: 'required'
     }
 
