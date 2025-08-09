@@ -45,11 +45,13 @@ export default defineEventHandler(async (event) => {
       })
     }
 
+    console.log("Found plan", subscriptionPlan);
     const priceId = subscriptionPlan.stripe_price_id
 
     // Verify the price exists in Stripe
     let stripePrice
     try {
+      console.log('Retrieving price:', priceId)
       stripePrice = await stripe.prices.retrieve(priceId)
     } catch (error) {
       throw createError({
