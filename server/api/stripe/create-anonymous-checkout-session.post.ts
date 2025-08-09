@@ -56,7 +56,7 @@ export default defineEventHandler(async (event) => {
     } catch (error) {
       throw createError({
         statusCode: 400,
-        statusMessage: 'Invalid price ID or price not found in Stripe'
+        statusMessage: 'Invalid price ID ' + priceId + ' or price not found in Stripe'
       })
     }
 
