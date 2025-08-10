@@ -99,6 +99,18 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
       })
       .eq('id', accountId)
 
+    // Get plan_id from subscription_plans table using Stripe price ID
+    let planId = null
+    if (subscription.items?.data?.[0]?.price?.id) {
+      const stripePriceId = subscription.items.data[0].price.id
+      const { data: plan } = await supabase
+        .from('subscription_plans')
+        .select('id')
+        .eq('stripe_price_id', stripePriceId)
+        .single()
+      planId = plan?.id || null
+    }
+
     // Create or update subscription record
     await supabase
       .from('subscriptions')
@@ -106,6 +118,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer as string,
         account_id: accountId,
+        plan_id: planId,
         status: subscription.status,
         current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
         current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
@@ -355,12 +368,25 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
       
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
       
+      // Get plan_id from subscription_plans table using Stripe price ID
+      let planId = null
+      if (subscription.items?.data?.[0]?.price?.id) {
+        const stripePriceId = subscription.items.data[0].price.id
+        const { data: plan } = await supabase
+          .from('subscription_plans')
+          .select('id')
+          .eq('stripe_price_id', stripePriceId)
+          .single()
+        planId = plan?.id || null
+      }
+      
       await supabase
         .from('subscriptions')
         .insert({
           stripe_subscription_id: subscription.id,
           stripe_customer_id: stripeCustomerId,
           account_id: accountData.id,
+          plan_id: planId,
           status: subscription.status,
           current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
           current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),

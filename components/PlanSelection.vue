@@ -296,6 +296,20 @@ const createAccountWithFreePlan = async () => {
   if (!user.value) return
 
   try {
+    // Get the free plan from subscription_plans
+    const { data: freePlan, error: planError } = await supabase
+      .from('subscription_plans')
+      .select('id')
+      .eq('name', 'Free')
+      .eq('amount', 0)
+      .single()
+
+    if (planError) {
+      console.error('Error getting free plan:', planError)
+      throw new Error('Free plan not found')
+    }
+
+    // Create account
     const { data, error } = await supabase
       .from('accounts')
       .insert({
@@ -303,7 +317,8 @@ const createAccountWithFreePlan = async () => {
         slug: `user-${user.value.id}`,
         owner_id: user.value.id,
         billing_email: user.value.email,
-        status: 'active'
+        status: 'active',
+        onboarding_completed: false
       })
       .select()
       .single()
@@ -318,6 +333,23 @@ const createAccountWithFreePlan = async () => {
         user_id: user.value.id,
         role: 'owner',
         joined_at: new Date().toISOString()
+      })
+
+    // Create free subscription record
+    await supabase
+      .from('subscriptions')
+      .insert({
+        account_id: data.id,
+        plan_id: freePlan.id,
+        status: 'active',
+        stripe_customer_id: '', // Empty for free plan
+        stripe_subscription_id: '', // Empty for free plan
+        current_period_start: new Date().toISOString(),
+        current_period_end: null, // Free plan doesn't have end date
+        cancel_at_period_end: false,
+        quantity: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       })
 
     if (props.redirectAfterSelection) {
