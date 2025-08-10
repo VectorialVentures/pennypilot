@@ -32,7 +32,7 @@ export default defineEventHandler(async (event) => {
 
     const { data: subscriptionPlan, error: planError } = await supabase
       .from('subscription_plans')
-      .select('stripe_price_id, name')
+      .select('id, stripe_price_id, name')
       .ilike('name', plan)
       .ilike('currency', currency)
       .eq('active', true)
@@ -64,6 +64,7 @@ export default defineEventHandler(async (event) => {
     const planInfo = {
       name: stripePrice.nickname || (stripePrice.product as any)?.name || 'Subscription Plan',
       amount: stripePrice.unit_amount,
+      id: subscriptionPlan.id,
       interval: stripePrice.recurring?.interval || 'month',
       trial_period_days: 14 // Default trial period
     }
@@ -82,6 +83,7 @@ export default defineEventHandler(async (event) => {
         metadata: {
           plan_name: planInfo.name,
           plan_type: plan,
+          plan_id: planInfo.id,
           currency: currency
         }
       },

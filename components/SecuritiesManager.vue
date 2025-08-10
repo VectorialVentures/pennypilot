@@ -1,197 +1,262 @@
 <template>
-  <div class="space-y-6">
+  <div class="relative space-y-6">
+    <!-- Floating Background Effects -->
+    <div class="absolute -top-20 -left-20 w-32 h-32 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow pointer-events-none"></div>
+    <div class="absolute -bottom-10 -right-10 w-24 h-24 bg-gradient-to-l from-accent-400/15 to-primary-400/15 rounded-full blur-xl animate-float-reverse pointer-events-none"></div>
+
     <!-- Add Security Form -->
-    <div class="border-2 border-dashed border-white/30 rounded-lg p-6 bg-white/5 backdrop-blur-sm">
-      <h3 class="text-lg font-semibold text-white mb-4">Add Security</h3>
-      
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-        <!-- Security Search -->
-        <div class="lg:col-span-2">
-          <label class="block text-sm font-medium text-white/80 mb-2">
-            Security (Ticker or Company Name)
-          </label>
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              class="input-field pr-10"
-              placeholder="e.g., AAPL, Apple Inc."
-              @input="searchSecurities"
-              @focus="showResults = true"
-              @blur="hideResults"
-            />
-            <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <MagnifyingGlassIcon class="h-5 w-5 text-white/40" />
-            </div>
-            
-            <!-- Search Results Dropdown -->
-            <div 
-              v-if="showResults && searchResults.length > 0"
-              class="absolute z-10 mt-1 w-full bg-background-900 border border-white/20 shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto"
-            >
-              <div
-                v-for="security in searchResults"
-                :key="security.id"
-                @mousedown="selectSecurity(security)"
-                class="cursor-pointer select-none relative py-2 pl-3 pr-9 hover:bg-white/10"
+    <div class="relative group">
+      <div class="absolute -inset-1 bg-gradient-to-r from-primary-600/30 to-accent-600/30 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
+      <div class="relative glass-dark rounded-2xl p-8 border border-primary-500/30 hover:border-primary-400/50 transition-all duration-300">
+        <div class="flex items-center mb-6">
+          <div class="w-12 h-12 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full flex items-center justify-center border border-primary-500/30 mr-4">
+            <PlusIcon class="w-6 h-6 text-primary-400" />
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Add Security</h3>
+            <p class="text-white/70 text-sm">Search and add securities to your portfolio</p>
+          </div>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <!-- Security Search -->
+          <div class="lg:col-span-2">
+            <label class="block text-sm font-semibold text-white mb-3">
+              Security (Ticker or Company Name)
+            </label>
+            <div class="relative">
+              <input
+                v-model="searchQuery"
+                type="text"
+                class="input-field pr-10"
+                placeholder="e.g., AAPL, Apple Inc."
+                @input="searchSecurities"
+                @focus="showResults = true"
+                @blur="hideResults"
+              />
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <MagnifyingGlassIcon class="h-5 w-5 text-white/40" />
+              </div>
+              
+              <!-- Search Results Dropdown -->
+              <div 
+                v-if="showResults && searchResults.length > 0"
+                class="absolute z-10 mt-2 w-full glass-dark border border-primary-500/30 shadow-2xl max-h-60 rounded-xl py-2 text-base overflow-auto backdrop-blur-xl"
               >
-                <div class="flex items-center">
-                  <div class="flex-1">
-                    <span class="font-medium text-white">{{ security.symbol }}</span>
-                    <span class="ml-2 text-white/70">{{ security.name }}</span>
+                <div
+                  v-for="security in searchResults"
+                  :key="security.id"
+                  @mousedown="selectSecurity(security)"
+                  class="cursor-pointer select-none relative py-3 px-4 hover:bg-gradient-to-r hover:from-primary-500/20 hover:to-accent-500/20 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <div class="flex items-center">
+                    <div class="flex-1">
+                      <span class="font-medium text-white">{{ security.symbol }}</span>
+                      <span class="ml-2 text-white/70">{{ security.name }}</span>
+                    </div>
+                    <div class="text-sm text-white/60">
+                      {{ security.exchange }}
+                    </div>
                   </div>
-                  <div class="text-sm text-white/60">
-                    {{ security.exchange }}
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- No Results -->
-            <div 
-              v-if="showResults && searchQuery && searchResults.length === 0 && !searching"
-              class="absolute z-10 mt-1 w-full bg-background-900 border border-white/20 shadow-lg rounded-md py-2 text-center text-sm text-white/60"
-            >
-              No securities found
-            </div>
-          </div>
-        </div>
-        
-        <!-- Number of Shares -->
-        <div>
-          <label class="block text-sm font-medium text-white/80 mb-2">
-            Number of Shares
-          </label>
-          <input
-            v-model.number="newSecurity.shares"
-            type="number"
-            step="0.001"
-            min="0"
-            class="input-field"
-            placeholder="100"
-          />
-        </div>
-        
-        <!-- Average Price -->
-        <div>
-          <label class="block text-sm font-medium text-white/80 mb-2">
-            Average Price per Share
-          </label>
-          <div class="relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <span class="text-white/60">$</span>
-            </div>
-            <input
-              v-model.number="newSecurity.averagePrice"
-              type="number"
-              step="0.01"
-              min="0"
-              class="input-field pl-7"
-              placeholder="0.00"
-            />
-          </div>
-        </div>
-        
-        <!-- Purchase Date -->
-        <div>
-          <label class="block text-sm font-medium text-white/80 mb-2">
-            Purchase Date (Optional)
-          </label>
-          <input
-            v-model="newSecurity.purchaseDate"
-            type="date"
-            class="input-field"
-          />
-        </div>
-      </div>
-      
-      <button
-        @click="addSecurity"
-        :disabled="!canAddSecurity"
-        class="btn-primary"
-        :class="{ 'opacity-50 cursor-not-allowed': !canAddSecurity }"
-      >
-        <PlusIcon class="w-4 h-4 mr-2" />
-        Add Security
-      </button>
-    </div>
-    
-    <!-- Securities List -->
-    <div v-if="securities.length > 0" class="space-y-3">
-      <h3 class="text-lg font-semibold text-white">Portfolio Securities</h3>
-      
-      <div class="space-y-2">
-        <div
-          v-for="(security, index) in securities"
-          :key="index"
-          class="flex items-center justify-between p-4 bg-white/5 backdrop-blur-sm rounded-lg border border-white/20 hover:border-white/30 transition-colors"
-        >
-          <div class="flex-1">
-            <div class="flex items-center space-x-4">
-              <div class="flex-1">
-                <div class="font-medium text-white">
-                  {{ security.symbol }}
-                </div>
-                <div class="text-sm text-white/70">
-                  {{ security.name }}
                 </div>
               </div>
               
-              <div class="text-right">
-                <div class="font-medium text-white">
-                  {{ formatNumber(security.shares) }} shares
-                </div>
-                <div class="text-sm text-white/70">
-                  @ ${{ formatCurrency(security.averagePrice) }}
-                </div>
-              </div>
-              
-              <div class="text-right">
-                <div class="font-medium text-white">
-                  ${{ formatCurrency(security.shares * security.averagePrice) }}
-                </div>
-                <div class="text-sm text-white/70">
-                  Total Value
-                </div>
-              </div>
-              
-              <div class="text-right min-w-[100px]">
-                <div class="text-sm text-white/70">
-                  {{ security.purchaseDate ? formatDate(security.purchaseDate) : 'No date' }}
-                </div>
+              <!-- No Results -->
+              <div 
+                v-if="showResults && searchQuery && searchResults.length === 0 && !searching"
+                class="absolute z-10 mt-2 w-full glass-dark border border-white/20 shadow-2xl rounded-xl py-4 text-center text-sm text-white/60 backdrop-blur-xl"
+              >
+                No securities found
               </div>
             </div>
           </div>
           
+          <!-- Number of Shares -->
+          <div>
+            <label class="block text-sm font-semibold text-white mb-3">
+              Shares
+            </label>
+            <input
+              v-model.number="newSecurity.shares"
+              type="number"
+              step="0.001"
+              min="0"
+              class="input-field"
+              placeholder="100"
+            />
+          </div>
+          
+          <!-- Average Price -->
+          <div>
+            <label class="block text-sm font-semibold text-white mb-3">
+              Price per Share
+            </label>
+            <div class="relative">
+              <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <span class="text-white/60">$</span>
+              </div>
+              <input
+                v-model.number="newSecurity.averagePrice"
+                type="number"
+                step="0.01"
+                min="0"
+                class="input-field pl-7"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+          
+          <!-- Purchase Date -->
+          <div class="md:col-span-2 lg:col-span-4">
+            <label class="block text-sm font-semibold text-white mb-3">
+              Purchase Date
+            </label>
+            <input
+              v-model="newSecurity.purchaseDate"
+              type="date"
+              class="input-field max-w-xs"
+            />
+          </div>
+        </div>
+        
+        <div class="flex justify-end">
           <button
-            @click="removeSecurity(index)"
-            class="ml-4 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors"
+            @click="addSecurity"
+            :disabled="!canAddSecurity"
+            class="btn-primary px-8 py-3 text-base font-semibold"
+            :class="{ 'opacity-50 cursor-not-allowed': !canAddSecurity }"
           >
-            <TrashIcon class="w-4 h-4" />
+            <PlusIcon class="w-5 h-5 mr-2" />
+            Add to Portfolio
           </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Securities List -->
+    <div v-if="securities.length > 0" class="relative space-y-6">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-2xl font-bold text-white">Portfolio <span class="gradient-text">Securities</span></h3>
+          <p class="text-white/70 mt-1">{{ securities.length }} {{ securities.length === 1 ? 'security' : 'securities' }} worth ${{ formatCurrency(totalValue) }}</p>
+        </div>
+      </div>
+      
+      <div class="grid gap-4">
+        <div
+          v-for="(security, index) in securities"
+          :key="index"
+          class="group relative"
+        >
+          <div class="absolute -inset-0.5 bg-gradient-to-r from-primary-600/20 to-accent-600/20 rounded-2xl blur opacity-0 group-hover:opacity-100 transition duration-300"></div>
+          <div class="relative glass-dark rounded-2xl p-6 border border-white/20 hover:border-primary-400/50 transition-all duration-300 hover:shadow-2xl hover:shadow-primary-500/10">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4 flex-1">
+                <div class="flex-shrink-0">
+                  <div class="w-12 h-12 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full flex items-center justify-center border border-primary-500/30">
+                    <span class="text-sm font-bold text-primary-400">{{ security.symbol.slice(0, 2).toUpperCase() }}</span>
+                  </div>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-lg text-white">
+                    {{ security.symbol }}
+                  </div>
+                  <div class="text-white/70 text-sm truncate">
+                    {{ security.name }}
+                  </div>
+                  <div class="text-xs text-white/50 mt-1">
+                    {{ security.exchange }}
+                  </div>
+                </div>
+                <div class="text-right hidden sm:block">
+                  <div class="text-sm text-white/70 mb-1">
+                    Shares
+                  </div>
+                  <div class="font-bold text-white text-lg">
+                    {{ formatNumber(security.shares) }}
+                  </div>
+                  <div class="text-xs text-white/60">
+                    @ ${{ formatCurrency(security.averagePrice) }}
+                  </div>
+                </div>
+                <div class="text-right">
+                  <div class="text-sm text-white/70 mb-1">
+                    Total Value
+                  </div>
+                  <div class="font-bold text-xl text-white">
+                    ${{ formatCurrency(security.shares * security.averagePrice) }}
+                  </div>
+                  <div class="text-xs text-white/60">
+                    {{ ((security.shares * security.averagePrice) / totalValue * 100).toFixed(1) }}% of portfolio
+                  </div>
+                </div>
+                <div class="text-right hidden md:block min-w-[120px]">
+                  <div class="text-sm text-white/70 mb-1">
+                    Purchase Date
+                  </div>
+                  <div class="text-sm text-white font-medium">
+                    {{ security.purchaseDate ? formatDate(security.purchaseDate) : 'Not specified' }}
+                  </div>
+                </div>
+              </div>
+              <button
+                @click="removeSecurity(index)"
+                class="ml-4 p-3 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded-xl transition-all duration-200 border border-red-500/20 hover:border-red-500/40"
+                title="Remove security"
+              >
+                <TrashIcon class="w-5 h-5" />
+              </button>
+            </div>
+            <!-- Mobile-only additional info -->
+            <div class="sm:hidden mt-4 pt-4 border-t border-white/10">
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span class="text-white/70">Shares: </span>
+                  <span class="text-white font-medium">{{ formatNumber(security.shares) }}</span>
+                </div>
+                <div>
+                  <span class="text-white/70">Price: </span>
+                  <span class="text-white font-medium">${{ formatCurrency(security.averagePrice) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
       <!-- Portfolio Summary -->
-      <div class="bg-white/5 backdrop-blur-sm rounded-lg p-4 mt-4 border border-white/10">
-        <div class="flex justify-between items-center text-sm">
-          <span class="text-white/70">Total Securities:</span>
-          <span class="font-medium text-white">{{ securities.length }}</span>
-        </div>
-        <div class="flex justify-between items-center text-sm mt-1">
-          <span class="text-white/70">Total Investment Value:</span>
-          <span class="font-medium text-white">${{ formatCurrency(totalValue) }}</span>
+      <div class="relative group mt-8">
+        <div class="absolute -inset-0.5 bg-gradient-to-r from-accent-600/30 to-primary-600/30 rounded-2xl blur opacity-40"></div>
+        <div class="relative glass-dark rounded-2xl p-6 border border-accent-500/30">
+          <div class="text-center">
+            <h4 class="text-lg font-bold text-white mb-4">Portfolio Summary</h4>
+            <div class="grid grid-cols-2 gap-6">
+              <div class="text-center">
+                <div class="text-3xl font-bold gradient-text mb-1">{{ securities.length }}</div>
+                <div class="text-white/70 text-sm font-medium">{{ securities.length === 1 ? 'Security' : 'Securities' }}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-3xl font-bold text-white mb-1">${{ formatCurrency(totalValue) }}</div>
+                <div class="text-white/70 text-sm font-medium">Total Value</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
     
     <!-- Empty State -->
-    <div v-else class="text-center py-8">
-      <CurrencyDollarIcon class="mx-auto h-12 w-12 text-white/40" />
-      <h3 class="mt-2 text-sm font-medium text-white">No securities added</h3>
-      <p class="mt-1 text-sm text-white/70">
-        Add your first security using the form above
-      </p>
+    <div v-else class="relative">
+      <div class="absolute -inset-1 bg-gradient-to-r from-primary-600/20 to-accent-600/20 rounded-2xl blur opacity-30"></div>
+      <div class="relative glass-dark rounded-2xl border border-white/20 p-12 text-center">
+        <div class="w-20 h-20 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-primary-500/30">
+          <CurrencyDollarIcon class="h-10 w-10 text-primary-400" />
+        </div>
+        <h3 class="text-xl font-bold text-white mb-2">No Securities Yet</h3>
+        <p class="text-white/70 max-w-md mx-auto leading-relaxed">
+          Start building your portfolio by adding your first security using the form above. Search for stocks, ETFs, or other investments to track.
+        </p>
+      </div>
     </div>
   </div>
 </template>

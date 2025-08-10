@@ -351,11 +351,11 @@ const createPortfolio = async () => {
   error.value = ''
   
   try {
-    // Get user's account_id
-    const { data: accountMember } = await supabase
-      .from('account_members')
-      .select('account_id')
-      .eq('user_id', user.value?.id)
+    // Get user's account_id directly from accounts table
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('owner_id', user.value?.id)
       .single()
 
     // Create portfolio
@@ -363,7 +363,7 @@ const createPortfolio = async () => {
       .from('portfolios')
       .insert({
         user_id: user.value?.id,
-        account_id: accountMember?.account_id,
+        account_id: account?.id,
         name: portfolioData.value.name,
         description: portfolioData.value.strategy,
         risk_level: portfolioData.value.riskLevel,

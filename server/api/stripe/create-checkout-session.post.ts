@@ -30,17 +30,17 @@ export default defineEventHandler(async (event) => {
 
     // Extract plan and currency from request or use defaults
     const { plan, currency = 'sek' } = body
-    
+
     let actualPriceId = priceId
 
     // If a plan type was provided instead of direct price ID
     if (plan && ['basic', 'premium'].includes(plan)) {
       // Get price ID from subscription_plans table
       const supabase = await serverSupabaseServiceRole<Database>(event)
-      
+
       const { data: subscriptionPlan, error: planError } = await supabase
         .from('subscription_plans')
-        .select('stripe_price_id, name')
+        .select('id, stripe_price_id, name')
         .eq('name', plan)
         .eq('currency', currency)
         .eq('active', true)
@@ -70,6 +70,7 @@ export default defineEventHandler(async (event) => {
     const planInfo = {
       name: stripePrice.nickname || (stripePrice.product as any)?.name || 'Subscription Plan',
       amount: stripePrice.unit_amount,
+      id: subscriptionPlan.id,
       interval: stripePrice.recurring?.interval || 'month',
       trial_period_days: 14 // Default trial period
     }
@@ -87,6 +88,7 @@ export default defineEventHandler(async (event) => {
         trial_period_days: planInfo.trial_period_days,
         metadata: {
           account_id: accountId || '',
+          plan_id: planInfo.id,
           plan_name: planInfo.name
         }
       },

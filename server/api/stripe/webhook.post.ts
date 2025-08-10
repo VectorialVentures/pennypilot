@@ -54,12 +54,16 @@ export default defineEventHandler(async (event) => {
         await handleSubscriptionCancellation(stripeEvent.data.object as Stripe.Subscription, event)
         break
       
+      case 'invoice.created':
+        await handleInvoiceCreated(stripeEvent.data.object as Stripe.Invoice, event)
+        break
+      
       case 'invoice.payment_succeeded':
-        await handlePaymentSuccess(stripeEvent.data.object as Stripe.Invoice, event)
+        await handleInvoicePaymentSuccess(stripeEvent.data.object as Stripe.Invoice, event)
         break
       
       case 'invoice.payment_failed':
-        await handlePaymentFailure(stripeEvent.data.object as Stripe.Invoice, event)
+        await handleInvoicePaymentFailure(stripeEvent.data.object as Stripe.Invoice, event)
         break
       
       default:
@@ -78,14 +82,73 @@ export default defineEventHandler(async (event) => {
 
 async function handleSubscriptionChange(subscription: Stripe.Subscription, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
+  const config = useRuntimeConfig()
+  const stripe = new Stripe(config.stripeSecretKey, {
+    apiVersion: '2024-06-20'
+  })
+  
   console.log('Subscription updated:', subscription.id)
   
   try {
-    const accountId = subscription.metadata?.account_id
+    let accountId = subscription.metadata?.account_id
     const planName = subscription.metadata?.plan_name
     
+    // If no account_id in subscription metadata, try to get it from customer or find by customer_id
     if (!accountId) {
-      console.error('No account_id in subscription metadata')
+      console.warn('No account_id in subscription metadata, attempting to resolve...')
+      
+      // First try to get from customer metadata
+      try {
+        const customer = await stripe.customers.retrieve(subscription.customer as string)
+        if (!customer.deleted && customer.metadata?.account_id) {
+          accountId = customer.metadata.account_id
+          
+          // Update subscription metadata for future use
+          await stripe.subscriptions.update(subscription.id, {
+            metadata: {
+              ...subscription.metadata,
+              account_id: accountId
+            }
+          })
+        }
+      } catch (error) {
+        console.error('Error retrieving customer:', error)
+      }
+      
+      // If still no account_id, try to find by customer_id in database
+      if (!accountId) {
+        const { data: account } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('stripe_customer_id', subscription.customer as string)
+          .single()
+        
+        if (account?.id) {
+          accountId = account.id
+          
+          // Update both customer and subscription metadata
+          try {
+            await Promise.all([
+              stripe.customers.update(subscription.customer as string, {
+                metadata: { account_id: accountId }
+              }),
+              stripe.subscriptions.update(subscription.id, {
+                metadata: {
+                  ...subscription.metadata,
+                  account_id: accountId
+                }
+              })
+            ])
+            console.log('Updated Stripe metadata with account_id:', accountId)
+          } catch (error) {
+            console.error('Error updating Stripe metadata:', error)
+          }
+        }
+      }
+    }
+    
+    if (!accountId) {
+      console.error('Unable to resolve account_id for subscription:', subscription.id)
       return
     }
 
@@ -175,39 +238,108 @@ async function handleSubscriptionCancellation(subscription: Stripe.Subscription,
   }
 }
 
-async function handlePaymentSuccess(invoice: Stripe.Invoice, event: any) {
+// Helper function to get customer metadata and account info
+async function getCustomerAccountInfo(customerId: string, event: any) {
+  const config = useRuntimeConfig()
+  const stripe = new Stripe(config.stripeSecretKey, {
+    apiVersion: '2024-06-20'
+  })
   const supabase = await serverSupabaseServiceRole<Database>(event)
+
+  try {
+    // Get customer from Stripe to access metadata
+    const customer = await stripe.customers.retrieve(customerId)
+    
+    if (customer.deleted) {
+      throw new Error('Customer has been deleted')
+    }
+
+    const accountId = customer.metadata?.account_id
+    if (!accountId) {
+      console.warn('No account_id found in customer metadata for customer:', customerId)
+      return { accountId: null, subscriptionId: null }
+    }
+
+    // Get subscription_id from the account's active subscription
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('stripe_subscription_id')
+      .eq('account_id', accountId)
+      .eq('stripe_customer_id', customerId)
+      .in('status', ['active', 'trialing', 'past_due'])
+      .single()
+
+    return {
+      accountId,
+      subscriptionId: subscription?.stripe_subscription_id || null
+    }
+  } catch (error) {
+    console.error('Error getting customer account info:', error)
+    return { accountId: null, subscriptionId: null }
+  }
+}
+
+// Helper function to create/update invoice record
+async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | null, subscriptionId: string | null, event: any) {
+  const supabase = await serverSupabaseServiceRole<Database>(event)
+
+  const invoiceData = {
+    stripe_invoice_id: invoice.id,
+    stripe_customer_id: invoice.customer as string,
+    account_id: accountId,
+    subscription_id: subscriptionId,
+    amount_due: invoice.amount_due,
+    amount_paid: invoice.amount_paid,
+    currency: invoice.currency,
+    status: invoice.status || 'draft',
+    created: new Date(invoice.created * 1000).toISOString(),
+    paid_at: invoice.status_transitions?.paid_at ? 
+      new Date(invoice.status_transitions.paid_at * 1000).toISOString() : null,
+    hosted_invoice_url: invoice.hosted_invoice_url,
+    invoice_pdf: invoice.invoice_pdf,
+    due_date: invoice.due_date ? new Date(invoice.due_date * 1000).toISOString() : null,
+    updated_at: new Date().toISOString()
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .upsert(invoiceData)
+
+  if (error) {
+    console.error('Error upserting invoice record:', error)
+    throw error
+  }
+
+  return invoiceData
+}
+
+async function handleInvoiceCreated(invoice: Stripe.Invoice, event: any) {
+  console.log('Invoice created:', invoice.id)
+  
+  try {
+    // Get customer account information
+    const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
+    
+    // Create invoice record
+    await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
+    
+    console.log('Invoice created successfully for account:', accountId)
+  } catch (error) {
+    console.error('Error handling invoice creation:', error)
+    throw error
+  }
+}
+
+async function handleInvoicePaymentSuccess(invoice: Stripe.Invoice, event: any) {
   console.log('Payment succeeded for invoice:', invoice.id)
   
   try {
-    // Get account_id from the customer
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('id')
-      .eq('stripe_customer_id', invoice.customer as string)
-      .single()
-
-    // Store invoice record
-    await supabase
-      .from('invoices')
-      .upsert({
-        stripe_invoice_id: invoice.id,
-        stripe_customer_id: invoice.customer as string,
-        account_id: account?.id || null,
-        subscription_id: invoice.subscription as string,
-        amount_due: invoice.amount_due,
-        amount_paid: invoice.amount_paid,
-        currency: invoice.currency,
-        status: invoice.status || 'paid',
-        created: new Date(invoice.created * 1000).toISOString(),
-        paid_at: invoice.status_transitions?.paid_at ? 
-          new Date(invoice.status_transitions.paid_at * 1000).toISOString() : null,
-        hosted_invoice_url: invoice.hosted_invoice_url,
-        invoice_pdf: invoice.invoice_pdf,
-        due_date: invoice.due_date ? new Date(invoice.due_date * 1000).toISOString() : null,
-        updated_at: new Date().toISOString()
-      })
-
+    // Get customer account information
+    const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
+    
+    // Update invoice record with payment success
+    await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
+    
     console.log('Payment success recorded for invoice:', invoice.id)
   } catch (error) {
     console.error('Error recording payment success:', error)
@@ -215,37 +347,16 @@ async function handlePaymentSuccess(invoice: Stripe.Invoice, event: any) {
   }
 }
 
-async function handlePaymentFailure(invoice: Stripe.Invoice, event: any) {
-  const supabase = await serverSupabaseServiceRole<Database>(event)
+async function handleInvoicePaymentFailure(invoice: Stripe.Invoice, event: any) {
   console.log('Payment failed for invoice:', invoice.id)
   
   try {
-    // Get account_id from the customer
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('id')
-      .eq('stripe_customer_id', invoice.customer as string)
-      .single()
-
-    // Store invoice record
-    await supabase
-      .from('invoices')
-      .upsert({
-        stripe_invoice_id: invoice.id,
-        stripe_customer_id: invoice.customer as string,
-        account_id: account?.id || null,
-        subscription_id: invoice.subscription as string,
-        amount_due: invoice.amount_due,
-        amount_paid: invoice.amount_paid || 0,
-        currency: invoice.currency,
-        status: 'open', // Failed payments remain open
-        created: new Date(invoice.created * 1000).toISOString(),
-        due_date: invoice.due_date ? new Date(invoice.due_date * 1000).toISOString() : null,
-        hosted_invoice_url: invoice.hosted_invoice_url,
-        invoice_pdf: invoice.invoice_pdf,
-        updated_at: new Date().toISOString()
-      })
-
+    // Get customer account information
+    const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
+    
+    // Update invoice record with payment failure
+    await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
+    
     // TODO: Send email notification about failed payment
     // TODO: Update account status if needed
     
@@ -255,6 +366,7 @@ async function handlePaymentFailure(invoice: Stripe.Invoice, event: any) {
     throw error
   }
 }
+
 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
@@ -349,6 +461,20 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     }
 
     console.log('Created account:', accountData.id)
+
+    // Update Stripe customer metadata with account_id
+    try {
+      await stripe.customers.update(stripeCustomerId, {
+        metadata: {
+          account_id: accountData.id,
+          user_id: authData.user.id
+        }
+      })
+      console.log('Updated Stripe customer metadata with account_id:', accountData.id)
+    } catch (error) {
+      console.error('Error updating Stripe customer metadata:', error)
+      // Don't fail the entire webhook for this
+    }
 
     // Create account member record
     await supabase
