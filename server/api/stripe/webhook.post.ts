@@ -290,7 +290,7 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
     // Get subscription_id from the account's active subscription
     const { data: subscription } = await supabase
       .from('subscriptions')
-      .select('stripe_subscription_id')
+      .select('id, stripe_subscription_id')
       .eq('account_id', accountId)
       .eq('stripe_customer_id', customerId)
       .in('status', ['active', 'trialing', 'past_due'])
@@ -298,23 +298,49 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
 
     return {
       accountId,
-      subscriptionId: subscription?.stripe_subscription_id || null
+      subscriptionId: subscription?.id || null, // Return Supabase subscription ID, not Stripe ID
+      stripeSubscriptionId: subscription?.stripe_subscription_id || null
     }
   } catch (error) {
     console.error('Error getting customer account info:', error)
-    return { accountId: null, subscriptionId: null }
+    return { accountId: null, subscriptionId: null, stripeSubscriptionId: null }
+  }
+}
+
+// Helper function to get subscription ID from Stripe subscription ID
+async function getSubscriptionIdFromStripe(stripeSubscriptionId: string, event: any) {
+  const supabase = await serverSupabaseServiceRole<Database>(event)
+  
+  try {
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('stripe_subscription_id', stripeSubscriptionId)
+      .single()
+    
+    return subscription?.id || null
+  } catch (error) {
+    console.error('Error getting subscription ID from Stripe subscription:', error)
+    return null
   }
 }
 
 // Helper function to create/update invoice record
 async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | null, subscriptionId: string | null, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
+  
+  // If we have invoice.subscription but no subscriptionId, try to look it up
+  let finalSubscriptionId = subscriptionId
+  if (!finalSubscriptionId && invoice.subscription) {
+    finalSubscriptionId = await getSubscriptionIdFromStripe(invoice.subscription as string, event)
+    console.log('Looked up subscription ID:', finalSubscriptionId, 'for Stripe subscription:', invoice.subscription)
+  }
 
   const invoiceData = {
     stripe_invoice_id: invoice.id,
     stripe_customer_id: invoice.customer as string,
     account_id: accountId,
-    subscription_id: subscriptionId,
+    subscription_id: finalSubscriptionId,
     amount_due: invoice.amount_due,
     amount_paid: invoice.amount_paid,
     currency: invoice.currency,
