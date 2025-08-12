@@ -254,10 +254,37 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
       throw new Error('Customer has been deleted')
     }
 
-    const accountId = customer.metadata?.account_id
+    let accountId = customer.metadata?.account_id
+    
+    // If no account_id in customer metadata, try to find it in database and update metadata
     if (!accountId) {
-      console.warn('No account_id found in customer metadata for customer:', customerId)
-      return { accountId: null, subscriptionId: null }
+      console.warn('No account_id found in customer metadata for customer:', customerId, '- attempting to resolve from database')
+      
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('stripe_customer_id', customerId)
+        .single()
+      
+      if (account?.id) {
+        accountId = account.id
+        
+        // Update customer metadata for future use
+        try {
+          await stripe.customers.update(customerId, {
+            metadata: {
+              ...customer.metadata,
+              account_id: accountId
+            }
+          })
+          console.log('Updated customer metadata with account_id:', accountId, 'for customer:', customerId)
+        } catch (error) {
+          console.error('Error updating customer metadata:', error)
+        }
+      } else {
+        console.error('No account found for customer:', customerId)
+        return { accountId: null, subscriptionId: null }
+      }
     }
 
     // Get subscription_id from the account's active subscription
@@ -303,7 +330,9 @@ async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | 
 
   const { error } = await supabase
     .from('invoices')
-    .upsert(invoiceData)
+    .upsert(invoiceData, {
+      onConflict: 'stripe_invoice_id'
+    })
 
   if (error) {
     console.error('Error upserting invoice record:', error)
