@@ -328,14 +328,33 @@ async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | 
     updated_at: new Date().toISOString()
   }
 
-  const { error } = await supabase
+  // First try to update existing record, then insert if it doesn't exist
+  const { data: existingInvoice } = await supabase
     .from('invoices')
-    .upsert(invoiceData, {
-      onConflict: 'stripe_invoice_id'
-    })
+    .select('id')
+    .eq('stripe_invoice_id', invoice.id)
+    .single()
+
+  let error
+  if (existingInvoice) {
+    // Update existing invoice
+    const { error: updateError } = await supabase
+      .from('invoices')
+      .update(invoiceData)
+      .eq('stripe_invoice_id', invoice.id)
+    error = updateError
+    console.log('Updated existing invoice:', invoice.id)
+  } else {
+    // Insert new invoice
+    const { error: insertError } = await supabase
+      .from('invoices')
+      .insert(invoiceData)
+    error = insertError
+    console.log('Inserted new invoice:', invoice.id)
+  }
 
   if (error) {
-    console.error('Error upserting invoice record:', error)
+    console.error('Error handling invoice record:', error)
     throw error
   }
 
