@@ -5,7 +5,7 @@ import type { Database } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  
+
   if (!config.stripeSecretKey) {
     throw createError({
       statusCode: 500,
@@ -44,28 +44,38 @@ export default defineEventHandler(async (event) => {
       case 'checkout.session.completed':
         await handleCheckoutSessionCompleted(stripeEvent.data.object as Stripe.Checkout.Session, event)
         break
-      
+
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         await handleSubscriptionChange(stripeEvent.data.object as Stripe.Subscription, event)
         break
-      
+
       case 'customer.subscription.deleted':
         await handleSubscriptionCancellation(stripeEvent.data.object as Stripe.Subscription, event)
         break
-      
+
       case 'invoice.created':
         await handleInvoiceCreated(stripeEvent.data.object as Stripe.Invoice, event)
         break
-      
+
       case 'invoice.payment_succeeded':
         await handleInvoicePaymentSuccess(stripeEvent.data.object as Stripe.Invoice, event)
         break
-      
+
       case 'invoice.payment_failed':
         await handleInvoicePaymentFailure(stripeEvent.data.object as Stripe.Invoice, event)
         break
       
+      case 'invoice.paid':
+        await handleInvoicePaymentSuccess(stripeEvent.data.object as Stripe.Invoice, event)
+        break
+      
+      case 'customer.created':
+        // Customer created - we don't need to do anything special here
+        // The account will be created when checkout.session.completed fires
+        console.log('Customer created:', stripeEvent.data.object.id)
+        break
+
       default:
         console.log(`Unhandled event type: ${stripeEvent.type}`)
     }
@@ -86,23 +96,23 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
   const stripe = new Stripe(config.stripeSecretKey, {
     apiVersion: '2024-06-20'
   })
-  
+
   console.log('Subscription updated:', subscription.id)
-  
+
   try {
     let accountId = subscription.metadata?.account_id
     const planName = subscription.metadata?.plan_name
-    
+
     // If no account_id in subscription metadata, try to get it from customer or find by customer_id
     if (!accountId) {
       console.warn('No account_id in subscription metadata, attempting to resolve...')
-      
+
       // First try to get from customer metadata
       try {
         const customer = await stripe.customers.retrieve(subscription.customer as string)
         if (!customer.deleted && customer.metadata?.account_id) {
           accountId = customer.metadata.account_id
-          
+
           // Update subscription metadata for future use
           await stripe.subscriptions.update(subscription.id, {
             metadata: {
@@ -114,7 +124,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
       } catch (error) {
         console.error('Error retrieving customer:', error)
       }
-      
+
       // If still no account_id, try to find by customer_id in database
       if (!accountId) {
         const { data: account } = await supabase
@@ -122,10 +132,10 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
           .select('id')
           .eq('stripe_customer_id', subscription.customer as string)
           .single()
-        
+
         if (account?.id) {
           accountId = account.id
-          
+
           // Update both customer and subscription metadata
           try {
             await Promise.all([
@@ -146,7 +156,7 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
         }
       }
     }
-    
+
     if (!accountId) {
       console.error('Unable to resolve account_id for subscription:', subscription.id)
       return
@@ -202,10 +212,10 @@ async function handleSubscriptionChange(subscription: Stripe.Subscription, event
 async function handleSubscriptionCancellation(subscription: Stripe.Subscription, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Subscription cancelled:', subscription.id)
-  
+
   try {
     const accountId = subscription.metadata?.account_id
-    
+
     if (!accountId) {
       console.error('No account_id in subscription metadata')
       return
@@ -249,26 +259,38 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
   try {
     // Get customer from Stripe to access metadata
     const customer = await stripe.customers.retrieve(customerId)
-    
+
     if (customer.deleted) {
       throw new Error('Customer has been deleted')
     }
 
     let accountId = customer.metadata?.account_id
-    
+
     // If no account_id in customer metadata, try to find it in database and update metadata
     if (!accountId) {
       console.warn('No account_id found in customer metadata for customer:', customerId, '- attempting to resolve from database')
-      
-      const { data: account } = await supabase
-        .from('accounts')
-        .select('id')
-        .eq('stripe_customer_id', customerId)
-        .single()
-      
+
+      // Try multiple times with delays - account creation might be in progress
+      let account = null
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        const { data } = await supabase
+          .from('accounts')
+          .select('id')
+          .eq('stripe_customer_id', customerId)
+          .single()
+        
+        account = data
+        if (account?.id) break
+        
+        if (attempt < 3) {
+          console.log(`Account not found for customer ${customerId}, attempt ${attempt}/3, retrying in 2s...`)
+          await new Promise(resolve => setTimeout(resolve, 2000))
+        }
+      }
+
       if (account?.id) {
         accountId = account.id
-        
+
         // Update customer metadata for future use
         try {
           await stripe.customers.update(customerId, {
@@ -282,8 +304,8 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
           console.error('Error updating customer metadata:', error)
         }
       } else {
-        console.error('No account found for customer:', customerId)
-        return { accountId: null, subscriptionId: null }
+        console.error('No account found for customer after 3 attempts:', customerId)
+        return { accountId: null, subscriptionId: null, stripeSubscriptionId: null }
       }
     }
 
@@ -310,14 +332,14 @@ async function getCustomerAccountInfo(customerId: string, event: any) {
 // Helper function to get subscription ID from Stripe subscription ID
 async function getSubscriptionIdFromStripe(stripeSubscriptionId: string, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
-  
+
   try {
     const { data: subscription } = await supabase
       .from('subscriptions')
       .select('id')
       .eq('stripe_subscription_id', stripeSubscriptionId)
       .single()
-    
+
     return subscription?.id || null
   } catch (error) {
     console.error('Error getting subscription ID from Stripe subscription:', error)
@@ -328,7 +350,7 @@ async function getSubscriptionIdFromStripe(stripeSubscriptionId: string, event: 
 // Helper function to create/update invoice record
 async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | null, subscriptionId: string | null, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
-  
+
   // If we have invoice.subscription but no subscriptionId, try to look it up
   let finalSubscriptionId = subscriptionId
   if (!finalSubscriptionId && invoice.subscription) {
@@ -346,7 +368,7 @@ async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | 
     currency: invoice.currency,
     status: invoice.status || 'draft',
     created: new Date(invoice.created * 1000).toISOString(),
-    paid_at: invoice.status_transitions?.paid_at ? 
+    paid_at: invoice.status_transitions?.paid_at ?
       new Date(invoice.status_transitions.paid_at * 1000).toISOString() : null,
     hosted_invoice_url: invoice.hosted_invoice_url,
     invoice_pdf: invoice.invoice_pdf,
@@ -354,34 +376,34 @@ async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | 
     updated_at: new Date().toISOString()
   }
 
-  // First try to update existing record, then insert if it doesn't exist
-  const { data: existingInvoice } = await supabase
+  // Try to insert first, then update if it already exists
+  const { error: insertError } = await supabase
     .from('invoices')
-    .select('id')
-    .eq('stripe_invoice_id', invoice.id)
-    .single()
+    .insert(invoiceData)
 
-  let error
-  if (existingInvoice) {
-    // Update existing invoice
-    const { error: updateError } = await supabase
-      .from('invoices')
-      .update(invoiceData)
-      .eq('stripe_invoice_id', invoice.id)
-    error = updateError
-    console.log('Updated existing invoice:', invoice.id)
+  if (insertError) {
+    if (insertError.code === '23505') {
+      // Duplicate key error - try to update instead
+      console.log('Invoice already exists, updating:', invoice.id)
+      const updateData = { ...invoiceData }
+      delete updateData.created // Don't update created timestamp
+      
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('stripe_invoice_id', invoice.id)
+      
+      if (updateError) {
+        console.error('Error updating existing invoice:', updateError)
+        throw updateError
+      }
+      console.log('Updated existing invoice:', invoice.id)
+    } else {
+      console.error('Error inserting invoice record:', insertError)
+      throw insertError
+    }
   } else {
-    // Insert new invoice
-    const { error: insertError } = await supabase
-      .from('invoices')
-      .insert(invoiceData)
-    error = insertError
     console.log('Inserted new invoice:', invoice.id)
-  }
-
-  if (error) {
-    console.error('Error handling invoice record:', error)
-    throw error
   }
 
   return invoiceData
@@ -389,14 +411,14 @@ async function upsertInvoiceRecord(invoice: Stripe.Invoice, accountId: string | 
 
 async function handleInvoiceCreated(invoice: Stripe.Invoice, event: any) {
   console.log('Invoice created:', invoice.id)
-  
+
   try {
     // Get customer account information
     const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
-    
+
     // Create invoice record
     await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
-    
+
     console.log('Invoice created successfully for account:', accountId)
   } catch (error) {
     console.error('Error handling invoice creation:', error)
@@ -406,14 +428,14 @@ async function handleInvoiceCreated(invoice: Stripe.Invoice, event: any) {
 
 async function handleInvoicePaymentSuccess(invoice: Stripe.Invoice, event: any) {
   console.log('Payment succeeded for invoice:', invoice.id)
-  
+
   try {
     // Get customer account information
     const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
-    
+
     // Update invoice record with payment success
     await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
-    
+
     console.log('Payment success recorded for invoice:', invoice.id)
   } catch (error) {
     console.error('Error recording payment success:', error)
@@ -423,17 +445,17 @@ async function handleInvoicePaymentSuccess(invoice: Stripe.Invoice, event: any) 
 
 async function handleInvoicePaymentFailure(invoice: Stripe.Invoice, event: any) {
   console.log('Payment failed for invoice:', invoice.id)
-  
+
   try {
     // Get customer account information
     const { accountId, subscriptionId } = await getCustomerAccountInfo(invoice.customer as string, event)
-    
+
     // Update invoice record with payment failure
     await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
-    
+
     // TODO: Send email notification about failed payment
     // TODO: Update account status if needed
-    
+
     console.log('Payment failure recorded for invoice:', invoice.id)
   } catch (error) {
     console.error('Error recording payment failure:', error)
@@ -445,7 +467,7 @@ async function handleInvoicePaymentFailure(invoice: Stripe.Invoice, event: any) 
 async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, event: any) {
   const supabase = await serverSupabaseServiceRole<Database>(event)
   console.log('Checkout session completed:', session.id)
-  
+
   try {
     // Only handle anonymous checkouts (new user registration)
     if (session.metadata?.anonymous_checkout !== 'true') {
@@ -456,7 +478,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     const customerEmail = session.customer_details?.email
     const planType = session.metadata?.plan_type
     const stripeCustomerId = session.customer as string
-    
+
     if (!customerEmail || !planType) {
       console.error('Missing customer email or plan type in checkout session')
       return
@@ -464,7 +486,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
 
     // Generate a temporary password for the user
     const tempPassword = generateTempPassword()
-    
+
     // Create Supabase user
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: customerEmail,
@@ -488,7 +510,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
 
     // Generate setup token for password setup
     const setupToken = generateSetupToken(authData.user.id, customerEmail, session.id)
-    
+
     // Store setup token in user metadata
     await supabase.auth.admin.updateUserById(authData.user.id, {
       user_metadata: {
@@ -501,7 +523,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     const stripe = new Stripe(useRuntimeConfig().stripeSecretKey, {
       apiVersion: '2024-06-20'
     })
-    
+
     try {
       await stripe.checkout.sessions.update(session.id, {
         metadata: {
@@ -565,9 +587,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
       const stripe = new Stripe(useRuntimeConfig().stripeSecretKey, {
         apiVersion: '2024-06-20'
       })
-      
+
       const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-      
+
       // Get plan_id from subscription_plans table using Stripe price ID
       let planId = null
       if (subscription.items?.data?.[0]?.price?.id) {
@@ -579,7 +601,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
           .single()
         planId = plan?.id || null
       }
-      
+
       await supabase
         .from('subscriptions')
         .insert({
@@ -602,7 +624,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
     // TODO: Implement email sending with temporary password
     console.log(`User created successfully: ${customerEmail} with temp password: ${tempPassword}`)
     console.log('Account created successfully for checkout session:', session.id)
-    
+
   } catch (error) {
     console.error('Error handling checkout session completion:', error)
     throw error
@@ -621,7 +643,7 @@ function generateTempPassword(): string {
 
 function generateSetupToken(userId: string, email: string, sessionId: string): string {
   const config = useRuntimeConfig()
-  
+
   const payload = {
     userId,
     email,
