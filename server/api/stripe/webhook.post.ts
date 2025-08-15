@@ -2,6 +2,7 @@ import Stripe from 'stripe'
 import jwt from 'jsonwebtoken'
 import { serverSupabaseServiceRole } from '#supabase/server'
 import type { Database } from '~/types/database'
+import { createEmailService } from '~/server/utils/BrevoEmailService'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -241,6 +242,30 @@ async function handleSubscriptionCancellation(subscription: Stripe.Subscription,
       })
       .eq('stripe_subscription_id', subscription.id)
 
+    // Send cancellation confirmation email
+    try {
+      const { data: account } = await supabase
+        .from('accounts')
+        .select('billing_email, name')
+        .eq('id', accountId)
+        .single()
+
+      if (account?.billing_email) {
+        const emailService = createEmailService()
+        const userName = account.name || account.billing_email.split('@')[0]
+        
+        await emailService.sendSubscriptionCancelledEmail(
+          account.billing_email,
+          userName
+        )
+        
+        console.log(`Subscription cancellation email sent to: ${account.billing_email}`)
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription cancellation email:', emailError)
+      // Don't fail the webhook for email issues
+    }
+
     console.log('Subscription cancelled successfully for account:', accountId)
   } catch (error) {
     console.error('Error cancelling subscription:', error)
@@ -453,8 +478,42 @@ async function handleInvoicePaymentFailure(invoice: Stripe.Invoice, event: any) 
     // Update invoice record with payment failure
     await upsertInvoiceRecord(invoice, accountId, subscriptionId, event)
 
-    // TODO: Send email notification about failed payment
-    // TODO: Update account status if needed
+    // Send email notification about failed payment
+    if (accountId) {
+      try {
+        const supabase = await serverSupabaseServiceRole<Database>(event)
+        const { data: account } = await supabase
+          .from('accounts')
+          .select('billing_email, name')
+          .eq('id', accountId)
+          .single()
+
+        if (account?.billing_email) {
+          const config = useRuntimeConfig()
+          const stripe = new Stripe(config.stripeSecretKey, { apiVersion: '2024-06-20' })
+          
+          // Create billing portal session
+          const portalSession = await stripe.billingPortal.sessions.create({
+            customer: invoice.customer as string,
+            return_url: `${process.env.NUXT_PUBLIC_SITE_URL || 'https://pennypilot.com'}/dashboard`
+          })
+
+          const emailService = createEmailService()
+          const userName = account.name || account.billing_email.split('@')[0]
+          
+          await emailService.sendPaymentFailureEmail(
+            account.billing_email,
+            userName,
+            portalSession.url
+          )
+          
+          console.log(`Payment failure email sent to: ${account.billing_email}`)
+        }
+      } catch (emailError) {
+        console.error('Failed to send payment failure email:', emailError)
+        // Don't fail the webhook for email issues
+      }
+    }
 
     console.log('Payment failure recorded for invoice:', invoice.id)
   } catch (error) {
@@ -620,9 +679,27 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session, 
         })
     }
 
-    // Send welcome email with login instructions
-    // TODO: Implement email sending with temporary password
-    console.log(`User created successfully: ${customerEmail} with temp password: ${tempPassword}`)
+    // Send welcome email with password setup link
+    try {
+      const emailService = createEmailService()
+      const config = useRuntimeConfig()
+      const setupUrl = `${process.env.NUXT_PUBLIC_SITE_URL || 'https://pennypilot.com'}/auth/setup-password?token=${setupToken}`
+      
+      const customerName = session.customer_details?.name || customerEmail.split('@')[0]
+      
+      await emailService.sendPasswordSetupEmail(
+        customerEmail,
+        customerName,
+        setupUrl
+      )
+      
+      console.log(`Welcome email sent to: ${customerEmail}`)
+    } catch (emailError) {
+      console.error('Failed to send welcome email:', emailError)
+      // Don't fail the webhook for email issues
+    }
+
+    console.log(`User created successfully: ${customerEmail}`)
     console.log('Account created successfully for checkout session:', session.id)
 
   } catch (error) {

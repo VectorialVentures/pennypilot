@@ -6,20 +6,21 @@ export const useProfile = async () => {
   
   if (!user.value) return null
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
+  // Get account data 
+  const { data: account, error } = await supabase
+    .from('accounts')
     .select('*')
-    .eq('id', user.value.id)
+    .eq('owner_id', user.value.id)
     .single()
 
   if (error && error.code !== 'PGRST116') {
     throw error
   }
 
-  return profile
+  return account
 }
 
-export const useCreateProfile = async (userData: {
+export const useCreateAccount = async (userData: {
   email: string
   fullName?: string
 }) => {
@@ -29,14 +30,14 @@ export const useCreateProfile = async (userData: {
   if (!user.value) throw new Error('No user found')
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('accounts')
     .insert({
-      id: user.value.id,
-      email: userData.email,
-      full_name: userData.fullName || null,
-      subscription_status: 'trial',
-      subscription_plan: 'free',
-      trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+      name: userData.fullName || userData.email.split('@')[0],
+      slug: `user-${user.value.id}`,
+      owner_id: user.value.id,
+      billing_email: userData.email,
+      status: 'active',
+      onboarding_completed: false
     })
     .select()
     .single()
@@ -45,19 +46,19 @@ export const useCreateProfile = async (userData: {
   return data
 }
 
-export const useUpdateProfile = async (updates: Partial<Database['public']['Tables']['profiles']['Update']>) => {
+export const useUpdateProfile = async (updates: Partial<Database['public']['Tables']['accounts']['Update']>) => {
   const supabase = useSupabaseClient<Database>()
   const user = useSupabaseUser()
   
   if (!user.value) throw new Error('No user found')
 
   const { data, error } = await supabase
-    .from('profiles')
+    .from('accounts')
     .update({
       ...updates,
       updated_at: new Date().toISOString()
     })
-    .eq('id', user.value.id)
+    .eq('owner_id', user.value.id)
     .select()
     .single()
 
@@ -71,13 +72,22 @@ export const usePortfolios = async () => {
   
   if (!user.value) return []
 
+  // Get user's account_id first
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('owner_id', user.value.id)
+    .single()
+
+  if (!account) return []
+
   const { data: portfolios, error } = await supabase
     .from('portfolios')
     .select(`
       *,
       assets (*)
     `)
-    .eq('user_id', user.value.id)
+    .eq('account_id', account.id)
     .order('created_at', { ascending: false })
 
   if (error) throw error
@@ -94,10 +104,20 @@ export const useCreatePortfolio = async (portfolioData: {
   
   if (!user.value) throw new Error('No user found')
 
+  // Get user's account_id
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('owner_id', user.value.id)
+    .single()
+
+  if (!account) throw new Error('No account found for user')
+
   const { data, error } = await supabase
     .from('portfolios')
     .insert({
       user_id: user.value.id,
+      account_id: account.id,
       name: portfolioData.name,
       description: portfolioData.description || null,
       is_default: portfolioData.isDefault || false

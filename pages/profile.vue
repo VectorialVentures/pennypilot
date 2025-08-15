@@ -1,5 +1,16 @@
 <template>
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- Background matching landing page -->
+  <div class="min-h-full">
+    <div class="absolute inset-0 bg-gradient-to-br from-background-950 via-background-900 to-background-950">
+      <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
+      <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
+    </div>
+    
+    <!-- Floating Gradient Orbs -->
+    <div class="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow"></div>
+    <div class="absolute bottom-20 right-1/4 w-96 h-96 bg-gradient-to-l from-accent-400/15 to-primary-400/15 rounded-full blur-3xl animate-float-reverse"></div>
+    
+    <div class="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <div class="mb-8">
       <h1 class="text-3xl font-bold gradient-text">Profile Settings</h1>
       <p class="text-secondary-600 mt-2">Manage your account information and preferences</p>
@@ -170,6 +181,7 @@
         {{ message.text }}
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -200,23 +212,61 @@ const loadProfile = async () => {
   if (!user.value) return
   
   try {
-    const { data, error } = await supabase
-      .from('profiles')
+    // Get account data instead of profiles
+    const { data: accountData, error: accountError } = await supabase
+      .from('accounts')
       .select('*')
-      .eq('id', user.value.id)
+      .eq('owner_id', user.value.id)
       .single()
     
-    if (error) throw error
+    if (accountError && accountError.code !== 'PGRST116') {
+      throw accountError
+    }
+
+    // Get subscription data
+    const { data: subData } = await supabase
+      .from('subscriptions')
+      .select(`
+        *,
+        subscription_plans (name, amount)
+      `)
+      .eq('account_id', accountData?.id)
+      .in('status', ['active', 'trialing', 'past_due'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
     
-    profile.value = data
+    profile.value = {
+      id: user.value.id,
+      email: user.value.email || accountData?.billing_email || '',
+      full_name: accountData?.name || '',
+      subscription_plan: subData?.subscription_plans?.name?.toLowerCase() || 'free',
+      subscription_status: subData?.status || (accountData ? 'active' : 'trial'),
+      trial_ends_at: subData?.trial_end || null
+    }
+    
     form.value = {
-      fullName: data.full_name || '',
-      email: data.email || ''
+      fullName: profile.value.full_name || '',
+      email: profile.value.email || ''
     }
     originalForm.value = { ...form.value }
   } catch (error) {
     console.error('Error loading profile:', error)
-    showMessage('error', 'Failed to load profile')
+    // Create default profile if none exists
+    profile.value = {
+      id: user.value.id,
+      email: user.value.email || '',
+      full_name: '',
+      subscription_plan: 'free',
+      subscription_status: 'trial',
+      trial_ends_at: null
+    }
+    
+    form.value = {
+      fullName: '',
+      email: user.value.email || ''
+    }
+    originalForm.value = { ...form.value }
   }
 }
 
@@ -224,13 +274,14 @@ const updateProfile = async () => {
   loading.value = true
   
   try {
+    // Update account name instead of profiles
     const { error } = await supabase
-      .from('profiles')
+      .from('accounts')
       .update({
-        full_name: form.value.fullName,
+        name: form.value.fullName,
         updated_at: new Date().toISOString()
       })
-      .eq('id', user.value!.id)
+      .eq('owner_id', user.value!.id)
     
     if (error) throw error
     

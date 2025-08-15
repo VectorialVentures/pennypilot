@@ -42,10 +42,16 @@
 
             <button
               @click="selectPlan('free')"
-              :disabled="loading && selectedPlan === 'free'"
-              class="w-full mt-8 px-6 py-3 bg-background-800/50 text-white border border-white/20 rounded-xl font-semibold hover:bg-background-700 transition-colors duration-200 disabled:opacity-50"
+              :disabled="(loading && selectedPlan === 'free') || isCurrentPlan('free')"
+              :class="[
+                'w-full mt-8 px-6 py-3 rounded-xl font-semibold transition-colors duration-200',
+                isCurrentPlan('free') 
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30 cursor-default'
+                  : 'bg-background-800/50 text-white border border-white/20 hover:bg-background-700 disabled:opacity-50'
+              ]"
             >
-              <span v-if="loading && selectedPlan === 'free'" class="flex items-center justify-center">
+              <span v-if="isCurrentPlan('free')">Current Plan</span>
+              <span v-else-if="loading && selectedPlan === 'free'" class="flex items-center justify-center">
                 <LoadingSpinner class="mr-2" />
                 Getting started...
               </span>
@@ -101,10 +107,16 @@
 
             <button
               @click="selectPlan('basic')"
-              :disabled="loading && selectedPlan === 'basic'"
-              class="w-full mt-8 btn-primary"
+              :disabled="(loading && selectedPlan === 'basic') || isCurrentPlan('basic')"
+              :class="[
+                'w-full mt-8',
+                isCurrentPlan('basic') 
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30 cursor-default px-6 py-3 rounded-xl font-semibold'
+                  : 'btn-primary'
+              ]"
             >
-              <span v-if="loading && selectedPlan === 'basic'" class="flex items-center justify-center">
+              <span v-if="isCurrentPlan('basic')">Current Plan</span>
+              <span v-else-if="loading && selectedPlan === 'basic'" class="flex items-center justify-center">
                 <LoadingSpinner class="mr-2" />
                 Processing...
               </span>
@@ -156,10 +168,16 @@
 
             <button
               @click="selectPlan('premium')"
-              :disabled="loading && selectedPlan === 'premium'"
-              class="w-full mt-8 px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50"
+              :disabled="(loading && selectedPlan === 'premium') || isCurrentPlan('premium')"
+              :class="[
+                'w-full mt-8 px-6 py-3 rounded-xl font-semibold transition-all duration-200',
+                isCurrentPlan('premium') 
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30 cursor-default'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50'
+              ]"
             >
-              <span v-if="loading && selectedPlan === 'premium'" class="flex items-center justify-center">
+              <span v-if="isCurrentPlan('premium')">Current Plan</span>
+              <span v-else-if="loading && selectedPlan === 'premium'" class="flex items-center justify-center">
                 <LoadingSpinner class="mr-2" />
                 Processing...
               </span>
@@ -198,11 +216,13 @@ import { CheckIcon, ShieldCheckIcon, ArrowPathIcon, ChatBubbleLeftRightIcon } fr
 interface Props {
   showFreeTrial?: boolean
   redirectAfterSelection?: boolean
+  currentPlan?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showFreeTrial: true,
-  redirectAfterSelection: true
+  redirectAfterSelection: true,
+  currentPlan: undefined
 })
 
 const emit = defineEmits<{
@@ -264,6 +284,10 @@ const formatPrice = (plan: 'basic' | 'premium') => {
   } else {
     return `${symbol}${amount}`
   }
+}
+
+const isCurrentPlan = (plan: string) => {
+  return props.currentPlan?.toLowerCase() === plan.toLowerCase()
 }
 
 const selectPlan = async (planType: 'free' | 'basic' | 'premium') => {

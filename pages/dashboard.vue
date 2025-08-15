@@ -1,6 +1,6 @@
 <template>
   <!-- Background matching landing page -->
-  <div class="min-h-screen">
+  <div class="min-h-full">
     <div class="absolute inset-0 bg-gradient-to-br from-background-950 via-background-900 to-background-950">
       <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
       <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
@@ -357,6 +357,19 @@ const loadPortfolios = async () => {
   
   loading.value.portfolios = true
   try {
+    // Get user's account_id first
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('owner_id', user.value.id)
+      .single()
+
+    if (!account) {
+      portfolios.value = []
+      loading.value.portfolios = false
+      return
+    }
+
     // Load portfolios with securities and their latest prices
     const { data, error } = await supabase
       .from('portfolios')
@@ -380,7 +393,7 @@ const loadPortfolios = async () => {
           value
         )
       `)
-      .eq('user_id', user.value.id)
+      .eq('account_id', account.id)
       .order('created_at', { ascending: false })
     
     if (error) throw error

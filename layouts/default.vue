@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+  <div class="min-h-screen bg-background-950">
     <AppNavigation />
-    <main class="pb-10">
+    <main>
       <slot />
     </main>
   </div>

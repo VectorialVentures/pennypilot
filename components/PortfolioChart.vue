@@ -49,18 +49,19 @@ import {
   LinearScale,
   PointElement,
   LineElement,
+  LineController,
   Title,
   Tooltip,
   Legend,
   Filler
 } from 'chart.js'
-import { Line } from 'vue-chartjs'
 
 ChartJS.register(
   CategoryScale,
   LinearScale,
   PointElement,
   LineElement,
+  LineController,
   Title,
   Tooltip,
   Legend,

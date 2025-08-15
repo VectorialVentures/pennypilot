@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   })
 
   try {
-    const { customerId } = body
+    const { customerId, returnUrl } = body
     
     if (!customerId) {
       throw createError({
@@ -27,10 +27,11 @@ export default defineEventHandler(async (event) => {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: customerId,
-      return_url: `${getHeader(event, 'origin')}/subscription`
+      return_url: returnUrl || `${getHeader(event, 'origin')}/subscription`
     })
 
     return {
+      success: true,
       url: session.url
     }
   } catch (error: any) {
