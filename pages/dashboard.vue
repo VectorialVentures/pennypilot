@@ -420,10 +420,11 @@ const loadPortfolios = async () => {
     if (portfolios.value.length > 0) {
       await Promise.all([
         loadPortfolioSecurities(),
-        loadPortfolioAnalysis(),
         loadLiquidFunds(),
         loadSecurityPrices()
       ])
+      // Load analysis separately to avoid recursion issues
+      await loadPortfolioAnalysis()
     }
     
     // Set default selected portfolio to the first one
@@ -457,18 +458,39 @@ const loadPortfolioAnalysis = async () => {
   if (!portfolios.value.length) return
   
   try {
-    for (const portfolio of portfolios.value) {
-      const { data: analysis } = await supabase
-        .from('portfolio_analysis')
-        .select('id, assessment, rating, created_at')
-        .eq('portfolio_id', portfolio.id)
-        .order('created_at', { ascending: false })
-        .limit(3)
-      
-      portfolio.portfolio_analysis = analysis || []
+    // Get all portfolio IDs at once to avoid iteration issues
+    const portfolioIds = portfolios.value.map(p => p.id)
+    
+    // Query all analysis data in a single request
+    const { data: allAnalysis, error } = await supabase
+      .from('portfolio_analysis')
+      .select('id, assessment, rating, created_at, portfolio_id')
+      .in('portfolio_id', portfolioIds)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Error loading portfolio analysis:', error)
+      return
     }
+    
+    // Group analysis by portfolio_id and assign to portfolios
+    const analysisByPortfolio = (allAnalysis || []).reduce((acc, analysis) => {
+      if (!acc[analysis.portfolio_id]) {
+        acc[analysis.portfolio_id] = []
+      }
+      if (acc[analysis.portfolio_id].length < 3) {
+        acc[analysis.portfolio_id].push(analysis)
+      }
+      return acc
+    }, {})
+    
+    // Assign analysis to each portfolio
+    portfolios.value.forEach(portfolio => {
+      portfolio.portfolio_analysis = analysisByPortfolio[portfolio.id] || []
+    })
+    
   } catch (error) {
-    console.error('Error loading portfolio analysis:', error)
+    console.error('Error in loadPortfolioAnalysis:', error)
   }
 }
 
@@ -477,18 +499,39 @@ const loadLiquidFunds = async () => {
   if (!portfolios.value.length) return
   
   try {
-    for (const portfolio of portfolios.value) {
-      const { data: liquidFunds } = await supabase
-        .from('portfolio_liquidfunds')
-        .select('balance, created_at')
-        .eq('portfolio_id', portfolio.id)
-        .order('created_at', { ascending: false })
-        .limit(5)
-      
-      portfolio.portfolio_liquidfunds = liquidFunds || []
+    // Get all portfolio IDs at once to avoid iteration issues
+    const portfolioIds = portfolios.value.map(p => p.id)
+    
+    // Query all liquid funds data in a single request
+    const { data: allLiquidFunds, error } = await supabase
+      .from('portfolio_liquidfunds')
+      .select('balance, created_at, portfolio_id')
+      .in('portfolio_id', portfolioIds)
+      .order('created_at', { ascending: false })
+    
+    if (error) {
+      console.error('Error loading liquid funds:', error)
+      return
     }
+    
+    // Group liquid funds by portfolio_id and assign to portfolios
+    const liquidFundsByPortfolio = (allLiquidFunds || []).reduce((acc, fund) => {
+      if (!acc[fund.portfolio_id]) {
+        acc[fund.portfolio_id] = []
+      }
+      if (acc[fund.portfolio_id].length < 5) {
+        acc[fund.portfolio_id].push(fund)
+      }
+      return acc
+    }, {})
+    
+    // Assign liquid funds to each portfolio
+    portfolios.value.forEach(portfolio => {
+      portfolio.portfolio_liquidfunds = liquidFundsByPortfolio[portfolio.id] || []
+    })
+    
   } catch (error) {
-    console.error('Error loading liquid funds:', error)
+    console.error('Error in loadLiquidFunds:', error)
   }
 }
 
@@ -497,30 +540,58 @@ const loadSecurityPrices = async () => {
   if (!portfolios.value.length) return
   
   try {
-    for (const portfolio of portfolios.value) {
+    // Collect all unique security IDs from all portfolios
+    const securityIds = []
+    const securityMap = new Map()
+    
+    portfolios.value.forEach(portfolio => {
       if (portfolio.portfolio_securities) {
-        for (const ps of portfolio.portfolio_securities) {
+        portfolio.portfolio_securities.forEach(ps => {
           if (ps.security_id) {
-            const { data: latestPrice, error } = await supabase
-              .from('security_prices')
-              .select('price, date')
-              .eq('security_id', ps.security_id)
-              .order('date', { ascending: false })
-              .limit(1)
-
-            let priceData = null
-            if (!error && latestPrice && latestPrice.length > 0) {
-              priceData = latestPrice[0]
-            }
-            
-            ps.current_price = priceData?.price || null
-            ps.price_date = priceData?.date || null
+            securityIds.push(ps.security_id)
+            securityMap.set(ps.security_id, ps)
           }
-        }
+        })
       }
+    })
+    
+    if (securityIds.length === 0) return
+    
+    // Get latest prices for all securities in a single query
+    const { data: allPrices, error } = await supabase
+      .from('security_prices')
+      .select('price, date, security_id')
+      .in('security_id', securityIds)
+      .order('date', { ascending: false })
+    
+    if (error) {
+      console.error('Error loading security prices:', error)
+      return
     }
+    
+    // Group prices by security_id and get the latest for each
+    const latestPricesBySecurityId = {}
+    allPrices?.forEach(price => {
+      if (!latestPricesBySecurityId[price.security_id]) {
+        latestPricesBySecurityId[price.security_id] = price
+      }
+    })
+    
+    // Assign prices to portfolio securities
+    portfolios.value.forEach(portfolio => {
+      if (portfolio.portfolio_securities) {
+        portfolio.portfolio_securities.forEach(ps => {
+          if (ps.security_id) {
+            const latestPrice = latestPricesBySecurityId[ps.security_id]
+            ps.current_price = latestPrice?.price || null
+            ps.price_date = latestPrice?.date || null
+          }
+        })
+      }
+    })
+    
   } catch (error) {
-    console.error('Error loading security prices:', error)
+    console.error('Error in loadSecurityPrices:', error)
   }
 }
 
