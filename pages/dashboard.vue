@@ -501,16 +501,20 @@ const loadSecurityPrices = async () => {
       if (portfolio.portfolio_securities) {
         for (const ps of portfolio.portfolio_securities) {
           if (ps.security_id) {
-            const { data: latestPrice } = await supabase
+            const { data: latestPrice, error } = await supabase
               .from('security_prices')
               .select('price, date')
               .eq('security_id', ps.security_id)
               .order('date', { ascending: false })
               .limit(1)
-              .single()
+
+            let priceData = null
+            if (!error && latestPrice && latestPrice.length > 0) {
+              priceData = latestPrice[0]
+            }
             
-            ps.current_price = latestPrice?.price || null
-            ps.price_date = latestPrice?.date || null
+            ps.current_price = priceData?.price || null
+            ps.price_date = priceData?.date || null
           }
         }
       }

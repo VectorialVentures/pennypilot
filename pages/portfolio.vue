@@ -467,15 +467,19 @@ const loadAssetPrices = async () => {
   try {
     for (const asset of assets.value) {
       if (asset.security_id) {
-        const { data: priceData } = await supabase
+        const { data: priceData, error } = await supabase
           .from('security_prices')
           .select('price')
           .eq('security_id', asset.security_id)
           .order('date', { ascending: false })
           .limit(1)
-          .single()
 
-        const currentPrice = priceData?.price || 0
+        // Handle the case where no price data exists
+        let currentPrice = 0
+        if (!error && priceData && priceData.length > 0) {
+          currentPrice = priceData[0].price || 0
+        }
+
         const totalValue = asset.quantity * currentPrice
         const totalCost = asset.quantity * asset.average_price
         const change = totalValue - totalCost
@@ -499,15 +503,19 @@ const loadAssetAnalysis = async () => {
   try {
     for (const asset of assets.value) {
       if (asset.security_id) {
-        const { data: analysisData } = await supabase
+        const { data: analysisData, error } = await supabase
           .from('security_analysis')
           .select('assessment, recommendation, created_at')
           .eq('security_id', asset.security_id)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
 
-        asset.ai_analysis = analysisData
+        // Handle the case where no analysis exists
+        if (!error && analysisData && analysisData.length > 0) {
+          asset.ai_analysis = analysisData[0]
+        } else {
+          asset.ai_analysis = null
+        }
       }
     }
   } catch (error) {
