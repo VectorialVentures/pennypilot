@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
+  // Allows to automatically instanciate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -166,38 +166,6 @@ export type Database = {
           },
         ]
       }
-      portfolio_analysis: {
-        Row: {
-          assessment: string
-          created_at: string
-          id: string
-          portfolio_id: string
-          rating: number
-        }
-        Insert: {
-          assessment: string
-          created_at?: string
-          id?: string
-          portfolio_id: string
-          rating: number
-        }
-        Update: {
-          assessment?: string
-          created_at?: string
-          id?: string
-          portfolio_id?: string
-          rating?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_analysis_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       portfolio_history: {
         Row: {
           created_at: string
@@ -230,49 +198,14 @@ export type Database = {
           },
         ]
       }
-      portfolio_liquidfunds: {
-        Row: {
-          balance: number | null
-          change: number | null
-          comment: string
-          created_at: string
-          id: string
-          portfolio_id: string | null
-        }
-        Insert: {
-          balance?: number | null
-          change?: number | null
-          comment: string
-          created_at?: string
-          id?: string
-          portfolio_id?: string | null
-        }
-        Update: {
-          balance?: number | null
-          change?: number | null
-          comment?: string
-          created_at?: string
-          id?: string
-          portfolio_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_liquidfunds_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       portfolio_recommendations: {
         Row: {
           action: Database["public"]["Enums"]["portfolio_action"] | null
           amount: number | null
           created_at: string
           date: string | null
+          description: string | null
           id: string
-          justification: string | null
           portfolio_id: string | null
           security_id: string | null
         }
@@ -281,8 +214,8 @@ export type Database = {
           amount?: number | null
           created_at?: string
           date?: string | null
+          description?: string | null
           id?: string
-          justification?: string | null
           portfolio_id?: string | null
           security_id?: string | null
         }
@@ -291,8 +224,8 @@ export type Database = {
           amount?: number | null
           created_at?: string
           date?: string | null
+          description?: string | null
           id?: string
-          justification?: string | null
           portfolio_id?: string | null
           security_id?: string | null
         }
@@ -397,7 +330,7 @@ export type Database = {
             foreignKeyName: "portfolio_transactions_portfolio_recommendation_id_fkey"
             columns: ["portfolio_recommendation_id"]
             isOneToOne: false
-            referencedRelation: "portfolio_recommendations"
+            referencedRelation: "portfolio_recommendation"
             referencedColumns: ["id"]
           },
           {
@@ -423,6 +356,7 @@ export type Database = {
           description: string | null
           id: string
           is_default: boolean | null
+          liquid_funds: number | null
           name: string
           risk_level: Database["public"]["Enums"]["risk_level"] | null
           sectors: Json | null
@@ -435,6 +369,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean | null
+          liquid_funds?: number | null
           name: string
           risk_level?: Database["public"]["Enums"]["risk_level"] | null
           sectors?: Json | null
@@ -447,6 +382,7 @@ export type Database = {
           description?: string | null
           id?: string
           is_default?: boolean | null
+          liquid_funds?: number | null
           name?: string
           risk_level?: Database["public"]["Enums"]["risk_level"] | null
           sectors?: Json | null
@@ -501,76 +437,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
-      }
-      security_analysis: {
-        Row: {
-          assessment: string
-          created_at: string
-          id: string
-          recommendation: Database["public"]["Enums"]["recommendation"]
-          security_id: string
-        }
-        Insert: {
-          assessment: string
-          created_at?: string
-          id?: string
-          recommendation: Database["public"]["Enums"]["recommendation"]
-          security_id: string
-        }
-        Update: {
-          assessment?: string
-          created_at?: string
-          id?: string
-          recommendation?: Database["public"]["Enums"]["recommendation"]
-          security_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "security_analysis_security_id_fkey"
-            columns: ["security_id"]
-            isOneToOne: false
-            referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      security_news: {
-        Row: {
-          created_at: string
-          id: string
-          published_at: string | null
-          security_id: string | null
-          sentiment: Database["public"]["Enums"]["sentiment"] | null
-          summary: string | null
-          url: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          published_at?: string | null
-          security_id?: string | null
-          sentiment?: Database["public"]["Enums"]["sentiment"] | null
-          summary?: string | null
-          url?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          published_at?: string | null
-          security_id?: string | null
-          sentiment?: Database["public"]["Enums"]["sentiment"] | null
-          summary?: string | null
-          url?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "security_news_security_id_fkey"
-            columns: ["security_id"]
-            isOneToOne: false
-            referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       security_prices: {
         Row: {
@@ -823,10 +689,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      user_is_account_member: {
-        Args: { check_account_id: string }
-        Returns: boolean
-      }
       user_owns_portfolio: {
         Args: { portfolio_id: string }
         Returns: boolean
@@ -839,10 +701,8 @@ export type Database = {
         | "suspended"
         | "trialing"
         | "cancelled"
-      portfolio_action: "buy" | "sell" | "hold"
-      recommendation: "sell" | "hold" | "buy"
+      portfolio_action: "buy" | "sell"
       risk_level: "conservative" | "moderate" | "aggressive"
-      sentiment: "negative" | "neutral" | "positive"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -977,10 +837,8 @@ export const Constants = {
         "trialing",
         "cancelled",
       ],
-      portfolio_action: ["buy", "sell", "hold"],
-      recommendation: ["sell", "hold", "buy"],
+      portfolio_action: ["buy", "sell"],
       risk_level: ["conservative", "moderate", "aggressive"],
-      sentiment: ["negative", "neutral", "positive"],
     },
   },
 } as const

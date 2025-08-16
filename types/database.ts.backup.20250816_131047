@@ -166,38 +166,6 @@ export type Database = {
           },
         ]
       }
-      portfolio_analysis: {
-        Row: {
-          assessment: string
-          created_at: string
-          id: string
-          portfolio_id: string
-          rating: number
-        }
-        Insert: {
-          assessment: string
-          created_at?: string
-          id?: string
-          portfolio_id: string
-          rating: number
-        }
-        Update: {
-          assessment?: string
-          created_at?: string
-          id?: string
-          portfolio_id?: string
-          rating?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "portfolio_analysis_portfolio_id_fkey"
-            columns: ["portfolio_id"]
-            isOneToOne: false
-            referencedRelation: "portfolios"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       portfolio_history: {
         Row: {
           created_at: string
@@ -271,8 +239,8 @@ export type Database = {
           amount: number | null
           created_at: string
           date: string | null
+          description: string | null
           id: string
-          justification: string | null
           portfolio_id: string | null
           security_id: string | null
         }
@@ -281,8 +249,8 @@ export type Database = {
           amount?: number | null
           created_at?: string
           date?: string | null
+          description?: string | null
           id?: string
-          justification?: string | null
           portfolio_id?: string | null
           security_id?: string | null
         }
@@ -291,8 +259,8 @@ export type Database = {
           amount?: number | null
           created_at?: string
           date?: string | null
+          description?: string | null
           id?: string
-          justification?: string | null
           portfolio_id?: string | null
           security_id?: string | null
         }
@@ -501,38 +469,6 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
-      }
-      security_analysis: {
-        Row: {
-          assessment: string
-          created_at: string
-          id: string
-          recommendation: Database["public"]["Enums"]["recommendation"]
-          security_id: string
-        }
-        Insert: {
-          assessment: string
-          created_at?: string
-          id?: string
-          recommendation: Database["public"]["Enums"]["recommendation"]
-          security_id: string
-        }
-        Update: {
-          assessment?: string
-          created_at?: string
-          id?: string
-          recommendation?: Database["public"]["Enums"]["recommendation"]
-          security_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "security_analysis_security_id_fkey"
-            columns: ["security_id"]
-            isOneToOne: false
-            referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       security_news: {
         Row: {
@@ -839,8 +775,7 @@ export type Database = {
         | "suspended"
         | "trialing"
         | "cancelled"
-      portfolio_action: "buy" | "sell" | "hold"
-      recommendation: "sell" | "hold" | "buy"
+      portfolio_action: "buy" | "sell"
       risk_level: "conservative" | "moderate" | "aggressive"
       sentiment: "negative" | "neutral" | "positive"
     }
@@ -977,8 +912,7 @@ export const Constants = {
         "trialing",
         "cancelled",
       ],
-      portfolio_action: ["buy", "sell", "hold"],
-      recommendation: ["sell", "hold", "buy"],
+      portfolio_action: ["buy", "sell"],
       risk_level: ["conservative", "moderate", "aggressive"],
       sentiment: ["negative", "neutral", "positive"],
     },

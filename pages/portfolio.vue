@@ -166,7 +166,23 @@
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <div v-if="asset.recommendation" class="flex items-center">
+                <div v-if="asset.ai_analysis" class="flex items-center">
+                  <span
+                    :class="[
+                      'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                      asset.ai_analysis.recommendation === 'buy' ? 'bg-accent-100 text-accent-800' :
+                      asset.ai_analysis.recommendation === 'sell' ? 'bg-danger-100 text-danger-800' :
+                      asset.ai_analysis.recommendation === 'hold' ? 'bg-primary-100 text-primary-800' :
+                      'bg-secondary-100 text-secondary-800'
+                    ]"
+                  >
+                    {{ asset.ai_analysis.recommendation.toUpperCase() }}
+                  </span>
+                  <div class="ml-2 text-xs text-white/60">
+                    AI
+                  </div>
+                </div>
+                <div v-else-if="asset.recommendation" class="flex items-center">
                   <span
                     :class="[
                       'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
@@ -193,6 +209,13 @@
                   >
                     <EyeIcon class="w-4 h-4" />
                   </button>
+                  <NuxtLink
+                    :to="`/security/${asset.symbol}`"
+                    class="text-accent-600 hover:text-accent-900 p-1"
+                    title="Security Details & News"
+                  >
+                    <NewspaperIcon class="w-4 h-4" />
+                  </NuxtLink>
                   <button
                     @click="editAsset(asset)"
                     class="text-white/70 hover:text-white p-1"
@@ -301,7 +324,8 @@ import {
   EyeIcon,
   PencilIcon,
   TrashIcon,
-  ChartBarIcon
+  ChartBarIcon,
+  NewspaperIcon
 } from '@heroicons/vue/24/outline'
 import type { Database } from '~/types/database'
 
@@ -410,6 +434,15 @@ const loadPortfolioAssets = async () => {
           .limit(1)
           .single()
 
+        // Get latest AI analysis for this security
+        const { data: analysisData } = await supabase
+          .from('security_analysis')
+          .select('assessment, recommendation, created_at')
+          .eq('security_id', security.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
         const currentPrice = priceData?.price || 0
         const avgPrice = ps.worth / ps.amount || 0
         const totalValue = ps.amount * currentPrice
@@ -430,6 +463,7 @@ const loadPortfolioAssets = async () => {
           change: change,
           changePercentage: changePercentage,
           weight: weight,
+          ai_analysis: analysisData,
           recommendation: null // Will be populated from AI recommendations
         }
       })

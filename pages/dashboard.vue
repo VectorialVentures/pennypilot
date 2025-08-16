@@ -70,6 +70,55 @@
       @view-reports="handleViewReports"
     />
 
+    <!-- AI Portfolio Analysis -->
+    <div v-if="portfolios.length > 0" class="card-dark mb-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-semibold text-white">AI Portfolio Analysis</h2>
+          <p class="text-sm text-white/70">Latest AI assessment of your portfolios</p>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <div
+          v-for="portfolio in portfolios.slice(0, 3)"
+          :key="portfolio.id"
+          class="border border-white/20 rounded-lg p-6 hover:border-white/30 transition-colors duration-200"
+        >
+          <div class="flex items-start justify-between mb-4">
+            <div>
+              <h3 class="text-lg font-semibold text-white">{{ portfolio.name }}</h3>
+              <p class="text-sm text-white/60">{{ portfolio.description || 'Investment portfolio' }}</p>
+            </div>
+            <div v-if="getLatestAnalysis(portfolio)" class="text-right">
+              <div class="flex items-center space-x-2">
+                <span class="text-2xl font-bold text-white">{{ getLatestAnalysis(portfolio)?.rating }}/10</span>
+                <div class="w-16 bg-white/20 rounded-full h-2">
+                  <div 
+                    class="h-2 rounded-full transition-all duration-500"
+                    :class="getRatingColor(getLatestAnalysis(portfolio)?.rating || 0)"
+                    :style="{ width: `${(getLatestAnalysis(portfolio)?.rating || 0) * 10}%` }"
+                  ></div>
+                </div>
+              </div>
+              <div class="text-xs text-white/50 mt-1">
+                {{ formatAnalysisDate(getLatestAnalysis(portfolio)?.created_at) }}
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="getLatestAnalysis(portfolio)" class="text-white/80 leading-relaxed">
+            {{ getLatestAnalysis(portfolio)?.assessment }}
+          </div>
+          
+          <div v-else class="text-center py-4">
+            <LightBulbIcon class="w-8 h-8 text-white/40 mx-auto mb-2" />
+            <p class="text-white/60 text-sm">No AI analysis available yet</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Portfolio Performance Chart -->
     <PortfolioChart :portfolio-id="selectedPortfolioId" />
 
@@ -126,7 +175,7 @@
                 <h4 class="text-sm font-medium text-white">
                   {{ recommendation.action?.toUpperCase() }} {{ recommendation.securities?.symbol }}
                 </h4>
-                <p class="text-sm text-white/70 mt-1">{{ recommendation.description }}</p>
+                <p class="text-sm text-white/70 mt-1">{{ recommendation.justification || recommendation.description || 'AI-generated recommendation' }}</p>
               </div>
               <div class="text-right">
                 <div v-if="recommendation.amount" class="text-sm font-medium text-white">
@@ -231,8 +280,14 @@ const dashboardData = computed(() => {
   let historicalGainLoss = 0
   
   portfolios.value.forEach(portfolio => {
-    // Add liquid funds
-    totalLiquidFunds += portfolio.liquid_funds || 0
+    // Add liquid funds from latest entry in portfolio_liquidfunds
+    if (portfolio.portfolio_liquidfunds && portfolio.portfolio_liquidfunds.length > 0) {
+      // Sort by created_at descending to get latest balance
+      const sortedLiquidFunds = [...portfolio.portfolio_liquidfunds].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+      totalLiquidFunds += sortedLiquidFunds[0].balance || 0
+    }
     
     // Calculate securities values
     if (portfolio.portfolio_securities) {
@@ -370,7 +425,7 @@ const loadPortfolios = async () => {
       return
     }
 
-    // Load portfolios with securities and their latest prices
+    // Load portfolios with securities, liquid funds, analysis, and their latest prices
     const { data, error } = await supabase
       .from('portfolios')
       .select(`
@@ -391,6 +446,16 @@ const loadPortfolios = async () => {
         portfolio_history (
           date,
           value
+        ),
+        portfolio_liquidfunds (
+          balance,
+          created_at
+        ),
+        portfolio_analysis (
+          id,
+          assessment,
+          rating,
+          created_at
         )
       `)
       .eq('account_id', account.id)
@@ -509,6 +574,39 @@ const loadRecentActivity = async () => {
     recentActivity.value = activities
   } catch (error) {
     console.error('Error loading recent activity:', error)
+  }
+}
+
+const getLatestAnalysis = (portfolio: any) => {
+  if (!portfolio.portfolio_analysis || portfolio.portfolio_analysis.length === 0) {
+    return null
+  }
+  return portfolio.portfolio_analysis[0]
+}
+
+const getRatingColor = (rating: number) => {
+  if (rating >= 8) return 'bg-accent-500'
+  if (rating >= 6) return 'bg-primary-500'
+  if (rating >= 4) return 'bg-orange-500'
+  return 'bg-danger-500'
+}
+
+const formatAnalysisDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffInMs = now.getTime() - date.getTime()
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60))
+  const diffInDays = Math.floor(diffInHours / 24)
+  
+  if (diffInHours < 1) {
+    return 'Just now'
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hour${diffInHours === 1 ? '' : 's'} ago`
+  } else if (diffInDays < 7) {
+    return `${diffInDays} day${diffInDays === 1 ? '' : 's'} ago`
+  } else {
+    return date.toLocaleDateString()
   }
 }
 
