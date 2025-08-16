@@ -129,17 +129,79 @@ export const useCreatePortfolio = async (portfolioData: {
   return data
 }
 
+export const usePortfolioAssets = async (portfolioId?: string) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) return []
+
+  // Get user's account_id first
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('owner_id', user.value.id)
+    .single()
+
+  if (!account) return []
+
+  let query = supabase
+    .from('portfolio_securities')
+    .select(`
+      *,
+      portfolio:portfolios!inner (
+        id,
+        name
+      ),
+      security:securities (
+        id,
+        symbol,
+        name,
+        asset_type
+      )
+    `)
+    .eq('portfolio.account_id', account.id)
+
+  // Filter by selected portfolio if provided
+  if (portfolioId) {
+    query = query.eq('portfolio_id', portfolioId)
+  }
+
+  const { data: portfolioSecurities, error } = await query
+
+  if (error) throw error
+  return portfolioSecurities || []
+}
+
 export const useAIRecommendations = async () => {
   const supabase = useSupabaseClient<Database>()
   const user = useSupabaseUser()
   
   if (!user.value) return []
 
+  // Get user's account_id first
+  const { data: account } = await supabase
+    .from('accounts')
+    .select('id')
+    .eq('owner_id', user.value.id)
+    .single()
+
+  if (!account) return []
+
   const { data: recommendations, error } = await supabase
-    .from('ai_recommendations')
-    .select('*')
-    .eq('user_id', user.value.id)
-    .eq('is_active', true)
+    .from('portfolio_recommendations')
+    .select(`
+      *,
+      portfolio:portfolios!inner (
+        id,
+        name
+      ),
+      security:securities (
+        id,
+        symbol,
+        name
+      )
+    `)
+    .eq('portfolio.account_id', account.id)
     .order('created_at', { ascending: false })
     .limit(10)
 

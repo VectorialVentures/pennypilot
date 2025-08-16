@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
@@ -198,7 +198,7 @@ export type Database = {
           },
         ]
       }
-      portfolio_recommendation: {
+      portfolio_recommendations: {
         Row: {
           action: Database["public"]["Enums"]["portfolio_action"] | null
           amount: number | null
@@ -330,7 +330,7 @@ export type Database = {
             foreignKeyName: "portfolio_transactions_portfolio_recommendation_id_fkey"
             columns: ["portfolio_recommendation_id"]
             isOneToOne: false
-            referencedRelation: "portfolio_recommendation"
+            referencedRelation: "portfolio_recommendations"
             referencedColumns: ["id"]
           },
           {
@@ -688,6 +688,10 @@ export type Database = {
       current_user_account_id: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      user_is_account_member: {
+        Args: { check_account_id: string }
+        Returns: boolean
       }
       user_owns_portfolio: {
         Args: { portfolio_id: string }

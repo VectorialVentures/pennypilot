@@ -452,7 +452,7 @@ const loadRecommendations = async () => {
     const portfolioIds = portfolios.value.map(p => p.id)
     
     const { data, error } = await supabase
-      .from('portfolio_recommendation')
+      .from('portfolio_recommendations')
       .select(`
         *,
         securities (

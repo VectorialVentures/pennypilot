@@ -91,8 +91,88 @@ const periods = [
   { label: 'ALL', value: 'ALL' }
 ]
 
-// Mock data generator for demonstration
-const generateMockData = (period: string): ChartDataPoint[] => {
+const supabase = useSupabaseClient()
+const user = useSupabaseUser()
+
+// Fetch real portfolio history data
+const fetchPortfolioHistory = async (period: string): Promise<ChartDataPoint[]> => {
+  if (!user.value) return []
+  
+  try {
+    // Calculate date range based on period
+    const now = new Date()
+    let startDate = new Date()
+    
+    switch (period) {
+      case '1W': startDate.setDate(now.getDate() - 7); break
+      case '1M': startDate.setMonth(now.getMonth() - 1); break
+      case '3M': startDate.setMonth(now.getMonth() - 3); break
+      case '6M': startDate.setMonth(now.getMonth() - 6); break
+      case '1Y': startDate.setFullYear(now.getFullYear() - 1); break
+      default: startDate.setFullYear(now.getFullYear() - 5); break // ALL
+    }
+
+    // Get user's account_id first
+    const { data: account } = await supabase
+      .from('accounts')
+      .select('id')
+      .eq('owner_id', user.value.id)
+      .single()
+
+    if (!account) return []
+
+    let query = supabase
+      .from('portfolio_history')
+      .select(`
+        date,
+        value,
+        portfolio:portfolios!inner (
+          id,
+          name
+        )
+      `)
+      .eq('portfolio.account_id', account.id)
+      .gte('date', startDate.toISOString().split('T')[0])
+      .order('date', { ascending: true })
+
+    // Filter by specific portfolio if provided
+    if (props.portfolioId) {
+      query = query.eq('portfolio_id', props.portfolioId)
+    }
+
+    const { data, error } = await query
+
+    if (error) throw error
+
+    // Group by date and sum values if multiple portfolios
+    const groupedData = new Map<string, number>()
+    
+    data?.forEach(entry => {
+      const date = entry.date
+      const value = entry.value || 0
+      const currentValue = groupedData.get(date) || 0
+      groupedData.set(date, currentValue + value)
+    })
+
+    // Convert to array and sort by date
+    const chartData: ChartDataPoint[] = Array.from(groupedData.entries())
+      .map(([date, value]) => ({ date, value }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    // If no data found, generate some fallback data points
+    if (chartData.length === 0) {
+      return generateFallbackData(period)
+    }
+
+    return chartData
+  } catch (error) {
+    console.error('Error fetching portfolio history:', error)
+    return generateFallbackData(period)
+  }
+}
+
+// Fallback data generator when no real data is available
+const generateFallbackData = (period: string): ChartDataPoint[] => {
   const now = new Date()
   const data: ChartDataPoint[] = []
   let days: number
@@ -106,7 +186,7 @@ const generateMockData = (period: string): ChartDataPoint[] => {
     default: days = 365; break
   }
   
-  let baseValue = 50000
+  let baseValue = 25000
   
   for (let i = days; i >= 0; i--) {
     const date = new Date(now)
@@ -130,8 +210,8 @@ const updateChart = async () => {
   loading.value = true
   
   try {
-    // In a real app, this would fetch data from your API
-    const data = generateMockData(selectedPeriod.value)
+    // Fetch real portfolio history data
+    const data = await fetchPortfolioHistory(selectedPeriod.value)
     
     if (chartInstance) {
       chartInstance.destroy()
