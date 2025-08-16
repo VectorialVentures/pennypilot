@@ -416,63 +416,102 @@ const loadPortfolioAssets = async () => {
   if (!user.value) return
 
   try {
+    // First load basic portfolio securities data
     const portfolioId = selectedPortfolioId.value === 'all' ? undefined : selectedPortfolioId.value
     const portfolioSecurities = await usePortfolioAssets(portfolioId)
 
-    // Transform the data to match the UI expectations
-    const processedAssets = await Promise.all(
-      (portfolioSecurities || []).map(async (ps: any) => {
-        const security = ps.security
-        if (!security) return null
+    if (!portfolioSecurities || portfolioSecurities.length === 0) {
+      assets.value = []
+      return
+    }
 
-        // Get current price (use most recent price from security_prices)
+    // Transform the basic data first
+    const basicAssets = portfolioSecurities.map((ps: any) => {
+      const security = ps.security
+      if (!security) return null
+
+      const avgPrice = ps.worth / ps.amount || 0
+
+      return {
+        id: ps.id,
+        symbol: security.symbol,
+        name: security.name || security.symbol,
+        quantity: ps.amount,
+        average_price: avgPrice,
+        current_price: 0, // Will be loaded separately
+        change: 0,
+        changePercentage: 0,
+        weight: 15, // Placeholder
+        ai_analysis: null, // Will be loaded separately
+        recommendation: null,
+        security_id: security.id
+      }
+    }).filter(Boolean)
+
+    assets.value = basicAssets
+
+    // Load additional data separately to avoid complex queries
+    await loadAssetPrices()
+    await loadAssetAnalysis()
+    
+  } catch (error) {
+    console.error('Error loading portfolio assets:', error)
+    assets.value = []
+  }
+}
+
+// Load current prices for assets separately
+const loadAssetPrices = async () => {
+  if (!assets.value.length) return
+
+  try {
+    for (const asset of assets.value) {
+      if (asset.security_id) {
         const { data: priceData } = await supabase
           .from('security_prices')
           .select('price')
-          .eq('security_id', security.id)
+          .eq('security_id', asset.security_id)
           .order('date', { ascending: false })
           .limit(1)
           .single()
 
-        // Get latest AI analysis for this security
+        const currentPrice = priceData?.price || 0
+        const totalValue = asset.quantity * currentPrice
+        const totalCost = asset.quantity * asset.average_price
+        const change = totalValue - totalCost
+        const changePercentage = totalCost > 0 ? (change / totalCost) * 100 : 0
+
+        // Update the asset with price data
+        asset.current_price = currentPrice
+        asset.change = change
+        asset.changePercentage = changePercentage
+      }
+    }
+  } catch (error) {
+    console.error('Error loading asset prices:', error)
+  }
+}
+
+// Load AI analysis for assets separately
+const loadAssetAnalysis = async () => {
+  if (!assets.value.length) return
+
+  try {
+    for (const asset of assets.value) {
+      if (asset.security_id) {
         const { data: analysisData } = await supabase
           .from('security_analysis')
           .select('assessment, recommendation, created_at')
-          .eq('security_id', security.id)
+          .eq('security_id', asset.security_id)
           .order('created_at', { ascending: false })
           .limit(1)
           .single()
 
-        const currentPrice = priceData?.price || 0
-        const avgPrice = ps.worth / ps.amount || 0
-        const totalValue = ps.amount * currentPrice
-        const totalCost = ps.amount * avgPrice
-        const change = totalValue - totalCost
-        const changePercentage = totalCost > 0 ? (change / totalCost) * 100 : 0
-
-        // Calculate portfolio weight (simplified - would need total portfolio value)
-        const weight = 15 // Placeholder - would calculate from total portfolio value
-
-        return {
-          id: ps.id,
-          symbol: security.symbol,
-          name: security.name || security.symbol,
-          quantity: ps.amount,
-          average_price: avgPrice,
-          current_price: currentPrice,
-          change: change,
-          changePercentage: changePercentage,
-          weight: weight,
-          ai_analysis: analysisData,
-          recommendation: null // Will be populated from AI recommendations
-        }
-      })
-    )
-
-    assets.value = processedAssets.filter(Boolean)
+        asset.ai_analysis = analysisData
+      }
+    }
   } catch (error) {
-    console.error('Error loading portfolio assets:', error)
-    assets.value = []
+    console.error('Error loading asset analysis:', error)
   }
 }
 

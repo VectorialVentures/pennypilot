@@ -406,96 +406,25 @@ const loadProfile = async () => {
   }
 }
 
-// Load user portfolios with securities, history, and current prices
+// Load user portfolios with simplified approach
 const loadPortfolios = async () => {
   if (!user.value) return
   
   loading.value.portfolios = true
   try {
-    // Get user's account_id first
-    const { data: account } = await supabase
-      .from('accounts')
-      .select('id')
-      .eq('owner_id', user.value.id)
-      .single()
-
-    if (!account) {
-      portfolios.value = []
-      loading.value.portfolios = false
-      return
+    // Use the existing composable but with simplified data fetching
+    const portfoliosData = await usePortfolios()
+    portfolios.value = portfoliosData || []
+    
+    // Load additional data separately to avoid complex nested queries
+    if (portfolios.value.length > 0) {
+      await Promise.all([
+        loadPortfolioSecurities(),
+        loadPortfolioAnalysis(),
+        loadLiquidFunds(),
+        loadSecurityPrices()
+      ])
     }
-
-    // Load portfolios with securities, liquid funds, analysis, and their latest prices
-    const { data, error } = await supabase
-      .from('portfolios')
-      .select(`
-        *,
-        portfolio_securities (
-          *,
-          securities (
-            id,
-            symbol,
-            name,
-            exchange,
-            security_prices (
-              price,
-              date
-            )
-          )
-        ),
-        portfolio_history (
-          date,
-          value
-        ),
-        portfolio_liquidfunds (
-          balance,
-          created_at
-        ),
-        portfolio_analysis (
-          id,
-          assessment,
-          rating,
-          created_at
-        )
-      `)
-      .eq('account_id', account.id)
-      .order('created_at', { ascending: false })
-    
-    if (error) throw error
-    
-    // Process portfolios to get latest security prices
-    const portfoliosWithCurrentPrices = await Promise.all((data || []).map(async (portfolio) => {
-      if (portfolio.portfolio_securities) {
-        // Get current prices for each security
-        const securitiesWithPrices = await Promise.all(portfolio.portfolio_securities.map(async (ps) => {
-          // Get the latest price for this security
-          const { data: latestPrice } = await supabase
-            .from('security_prices')
-            .select('price, date')
-            .eq('security_id', ps.security_id)
-            .order('date', { ascending: false })
-            .limit(1)
-            .single()
-          
-          return {
-            ...ps,
-            current_price: latestPrice?.price || null,
-            price_date: latestPrice?.date || null
-          }
-        }))
-        
-        portfolio.portfolio_securities = securitiesWithPrices
-      }
-      
-      // Sort portfolio history by date (most recent first)
-      if (portfolio.portfolio_history) {
-        portfolio.portfolio_history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      }
-      
-      return portfolio
-    }))
-    
-    portfolios.value = portfoliosWithCurrentPrices
     
     // Set default selected portfolio to the first one
     if (portfolios.value.length > 0 && !selectedPortfolioId.value) {
@@ -503,8 +432,91 @@ const loadPortfolios = async () => {
     }
   } catch (error) {
     console.error('Error loading portfolios:', error)
+    portfolios.value = []
   } finally {
     loading.value.portfolios = false
+  }
+}
+
+// Load portfolio securities separately
+const loadPortfolioSecurities = async () => {
+  if (!portfolios.value.length) return
+  
+  try {
+    for (const portfolio of portfolios.value) {
+      const securities = await usePortfolioSecurities(portfolio.id)
+      portfolio.portfolio_securities = securities
+    }
+  } catch (error) {
+    console.error('Error loading portfolio securities:', error)
+  }
+}
+
+// Load portfolio analysis separately
+const loadPortfolioAnalysis = async () => {
+  if (!portfolios.value.length) return
+  
+  try {
+    for (const portfolio of portfolios.value) {
+      const { data: analysis } = await supabase
+        .from('portfolio_analysis')
+        .select('id, assessment, rating, created_at')
+        .eq('portfolio_id', portfolio.id)
+        .order('created_at', { ascending: false })
+        .limit(3)
+      
+      portfolio.portfolio_analysis = analysis || []
+    }
+  } catch (error) {
+    console.error('Error loading portfolio analysis:', error)
+  }
+}
+
+// Load liquid funds separately
+const loadLiquidFunds = async () => {
+  if (!portfolios.value.length) return
+  
+  try {
+    for (const portfolio of portfolios.value) {
+      const { data: liquidFunds } = await supabase
+        .from('portfolio_liquidfunds')
+        .select('balance, created_at')
+        .eq('portfolio_id', portfolio.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      
+      portfolio.portfolio_liquidfunds = liquidFunds || []
+    }
+  } catch (error) {
+    console.error('Error loading liquid funds:', error)
+  }
+}
+
+// Load security prices separately
+const loadSecurityPrices = async () => {
+  if (!portfolios.value.length) return
+  
+  try {
+    for (const portfolio of portfolios.value) {
+      if (portfolio.portfolio_securities) {
+        for (const ps of portfolio.portfolio_securities) {
+          if (ps.security_id) {
+            const { data: latestPrice } = await supabase
+              .from('security_prices')
+              .select('price, date')
+              .eq('security_id', ps.security_id)
+              .order('date', { ascending: false })
+              .limit(1)
+              .single()
+            
+            ps.current_price = latestPrice?.price || null
+            ps.price_date = latestPrice?.date || null
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error loading security prices:', error)
   }
 }
 

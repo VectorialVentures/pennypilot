@@ -81,21 +81,24 @@ export const usePortfolios = async () => {
 
   if (!account) return []
 
+  // Load just basic portfolio data to avoid complex queries
   const { data: portfolios, error } = await supabase
     .from('portfolios')
-    .select(`
-      *,
-      portfolio_securities (*),
-      portfolio_liquidfunds (
-        balance,
-        created_at
-      )
-    `)
+    .select('*')
     .eq('account_id', account.id)
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return portfolios || []
+  
+  // Add empty arrays for data that will be loaded separately
+  const portfoliosWithStructure = (portfolios || []).map(portfolio => ({
+    ...portfolio,
+    portfolio_securities: [],
+    portfolio_liquidfunds: [],
+    portfolio_analysis: []
+  }))
+
+  return portfoliosWithStructure
 }
 
 export const useCreatePortfolio = async (portfolioData: {
@@ -148,14 +151,11 @@ export const usePortfolioAssets = async (portfolioId?: string) => {
 
   if (!account) return []
 
-  let query = supabase
+  // Simplified query - get portfolio securities with basic security info
+  let portfolioSecuritiesQuery = supabase
     .from('portfolio_securities')
     .select(`
       *,
-      portfolio:portfolios!inner (
-        id,
-        name
-      ),
       security:securities (
         id,
         symbol,
@@ -163,17 +163,47 @@ export const usePortfolioAssets = async (portfolioId?: string) => {
         asset_type
       )
     `)
-    .eq('portfolio.account_id', account.id)
 
-  // Filter by selected portfolio if provided
+  // Filter by portfolio if specified
   if (portfolioId) {
-    query = query.eq('portfolio_id', portfolioId)
+    portfolioSecuritiesQuery = portfolioSecuritiesQuery.eq('portfolio_id', portfolioId)
+  } else {
+    // If no specific portfolio, get all securities for user's portfolios
+    const { data: userPortfolios } = await supabase
+      .from('portfolios')
+      .select('id')
+      .eq('account_id', account.id)
+    
+    if (!userPortfolios || userPortfolios.length === 0) return []
+    
+    const portfolioIds = userPortfolios.map(p => p.id)
+    portfolioSecuritiesQuery = portfolioSecuritiesQuery.in('portfolio_id', portfolioIds)
   }
 
-  const { data: portfolioSecurities, error } = await query
+  const { data: portfolioSecurities, error } = await portfolioSecuritiesQuery
 
   if (error) throw error
   return portfolioSecurities || []
+}
+
+export const usePortfolioSecurities = async (portfolioId: string) => {
+  const supabase = useSupabaseClient<Database>()
+  
+  const { data: securities, error } = await supabase
+    .from('portfolio_securities')
+    .select(`
+      *,
+      security:securities (
+        id,
+        symbol,
+        name,
+        asset_type
+      )
+    `)
+    .eq('portfolio_id', portfolioId)
+
+  if (error) throw error
+  return securities || []
 }
 
 export const useAIRecommendations = async () => {
