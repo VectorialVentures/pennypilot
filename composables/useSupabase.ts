@@ -665,3 +665,15 @@ export const useUpdatePortfolioSecurity = async (portfolioSecurityId: string, up
   if (error) throw error
   return data
 }
+
+export const useFetchPortfolioNews = async () => {
+  try {
+    const { data } = await $fetch('/api/securities/fetch-portfolio-news', {
+      method: 'POST'
+    })
+    return data
+  } catch (error) {
+    console.error('Error fetching portfolio news:', error)
+    throw error
+  }
+}

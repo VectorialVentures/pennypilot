@@ -32,6 +32,7 @@ export default defineNuxtConfig({
     stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     nuxtSecretKey: process.env.NUXT_SECRET_KEY,
     twelveDataApiKey: process.env.TWELVE_DATA_API_KEY,
+    marketauxApiKey: process.env.MARKETAUX_API_KEY,
     systemSecret: process.env.SYSTEM_SECRET,
     brevoApiKey: process.env.BREVO_API_KEY,
     public: {
