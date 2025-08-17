@@ -49,7 +49,7 @@
       </div>
       <h3 class="text-lg font-medium text-white mb-2">No portfolios yet</h3>
       <p class="text-white/70 mb-4">Get started by creating your first investment portfolio</p>
-      <button @click="navigateTo('/onboarding')" class="btn-primary">
+      <button @click="showCreatePortfolioModal = true" class="btn-primary">
         Create Your First Portfolio
       </button>
     </div>
@@ -74,9 +74,13 @@
     <div v-if="portfolios.length > 0" class="card-dark mb-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-xl font-semibold text-white">AI Portfolio Analysis</h2>
-          <p class="text-sm text-white/70">Latest AI assessment of your portfolios</p>
+          <h2 class="text-xl font-semibold text-white">Portfolio Management</h2>
+          <p class="text-sm text-white/70">Manage your portfolios and view AI assessments</p>
         </div>
+        <button @click="showCreatePortfolioModal = true" class="btn-primary">
+          <PlusIcon class="w-4 h-4 mr-2" />
+          Create Portfolio
+        </button>
       </div>
 
       <div class="space-y-6">
@@ -86,8 +90,26 @@
           class="border border-white/20 rounded-lg p-6 hover:border-white/30 transition-colors duration-200"
         >
           <div class="flex items-start justify-between mb-4">
-            <div>
-              <h3 class="text-lg font-semibold text-white">{{ portfolio.name }}</h3>
+            <div class="flex-1">
+              <div class="flex items-center space-x-3">
+                <h3 class="text-lg font-semibold text-white">{{ portfolio.name }}</h3>
+                <div class="flex items-center space-x-1">
+                  <button
+                    @click="editPortfolio(portfolio)"
+                    class="p-1 text-white/60 hover:text-primary-400 transition-colors duration-200"
+                    title="Edit Portfolio"
+                  >
+                    <PencilIcon class="w-4 h-4" />
+                  </button>
+                  <button
+                    @click="deletePortfolio(portfolio)"
+                    class="p-1 text-white/60 hover:text-danger-400 transition-colors duration-200"
+                    title="Delete Portfolio"
+                  >
+                    <TrashIcon class="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
               <p class="text-sm text-white/60">{{ portfolio.description || 'Investment portfolio' }}</p>
             </div>
             <div v-if="getLatestAnalysis(portfolio)" class="text-right">
@@ -225,6 +247,109 @@
         </button>
       </div>
     </div>
+  </div>
+
+  <!-- Create Portfolio Modal -->
+  <div v-if="showCreatePortfolioModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-background-900 border border-white/20 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">Create New Portfolio</h3>
+      <form @submit.prevent="createPortfolio" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Portfolio Name</label>
+          <input 
+            v-model="newPortfolio.name"
+            type="text" 
+            required
+            placeholder="e.g., Growth Portfolio"
+            class="input-field w-full"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Description (Optional)</label>
+          <textarea 
+            v-model="newPortfolio.description"
+            placeholder="Brief description of this portfolio..."
+            rows="3"
+            class="input-field w-full resize-none"
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Risk Level</label>
+          <select v-model="newPortfolio.riskLevel" class="input-field w-full">
+            <option value="conservative">Conservative</option>
+            <option value="moderate">Moderate</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3 pt-4">
+          <button 
+            type="button" 
+            @click="showCreatePortfolioModal = false" 
+            class="btn-secondary"
+            :disabled="isCreatingPortfolio"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="btn-primary"
+            :disabled="isCreatingPortfolio || !newPortfolio.name.trim()"
+          >
+            <span v-if="isCreatingPortfolio">Creating...</span>
+            <span v-else>Create Portfolio</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Portfolio Modal -->
+  <div v-if="showEditPortfolioModal && editingPortfolio" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-background-900 border border-white/20 rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">Edit Portfolio</h3>
+      <form @submit.prevent="updatePortfolio" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Portfolio Name</label>
+          <input 
+            v-model="editingPortfolio.name"
+            type="text" 
+            required
+            class="input-field w-full"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Description</label>
+          <textarea 
+            v-model="editingPortfolio.description"
+            rows="3"
+            class="input-field w-full resize-none"
+          ></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Risk Level</label>
+          <select v-model="editingPortfolio.risk_level" class="input-field w-full">
+            <option value="conservative">Conservative</option>
+            <option value="moderate">Moderate</option>
+            <option value="aggressive">Aggressive</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3 pt-4">
+          <button 
+            type="button" 
+            @click="showEditPortfolioModal = false; editingPortfolio = null" 
+            class="btn-secondary"
+          >
+            Cancel
+          </button>
+          <button 
+            type="submit" 
+            class="btn-primary"
+            :disabled="!editingPortfolio.name?.trim()"
+          >
+            Update Portfolio
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </template>
@@ -237,7 +362,9 @@ import {
   MinusIcon,
   EyeIcon,
   PlusIcon,
-  ArrowsRightLeftIcon
+  ArrowsRightLeftIcon,
+  PencilIcon,
+  TrashIcon
 } from '@heroicons/vue/24/outline'
 
 definePageMeta({
@@ -257,6 +384,18 @@ const loading = ref({
 const showAddAssetModal = ref(false)
 const selectedPortfolioId = ref<string | null>(null)
 const recommendationsSection = ref<HTMLElement>()
+
+// Portfolio Management
+const showCreatePortfolioModal = ref(false)
+const showEditPortfolioModal = ref(false)
+const editingPortfolio = ref<any>(null)
+const newPortfolio = ref({
+  name: '',
+  description: '',
+  riskLevel: 'moderate'
+})
+const isCreatingPortfolio = ref(false)
+const isDeletingPortfolio = ref(false)
 
 // Calculate dashboard data from real portfolios with current market prices
 const dashboardData = computed(() => {
@@ -388,6 +527,71 @@ const scrollToRecommendations = () => {
       behavior: 'smooth',
       block: 'start'
     })
+  }
+}
+
+// Portfolio Management Functions
+const createPortfolio = async () => {
+  if (!newPortfolio.value.name.trim()) return
+  
+  isCreatingPortfolio.value = true
+  try {
+    await useCreatePortfolio({
+      name: newPortfolio.value.name,
+      description: newPortfolio.value.description,
+      isDefault: portfolios.value.length === 0 // Make first portfolio default
+    })
+    
+    // Reset form and reload portfolios
+    newPortfolio.value = { name: '', description: '', riskLevel: 'moderate' }
+    showCreatePortfolioModal.value = false
+    await loadPortfolios()
+  } catch (error) {
+    console.error('Error creating portfolio:', error)
+    alert('Failed to create portfolio. Please try again.')
+  } finally {
+    isCreatingPortfolio.value = false
+  }
+}
+
+const editPortfolio = (portfolio: any) => {
+  editingPortfolio.value = { ...portfolio }
+  showEditPortfolioModal.value = true
+}
+
+const updatePortfolio = async () => {
+  if (!editingPortfolio.value?.name.trim()) return
+  
+  try {
+    await useUpdatePortfolio(editingPortfolio.value.id, {
+      name: editingPortfolio.value.name,
+      description: editingPortfolio.value.description,
+      riskLevel: editingPortfolio.value.risk_level
+    })
+    
+    showEditPortfolioModal.value = false
+    editingPortfolio.value = null
+    await loadPortfolios()
+  } catch (error) {
+    console.error('Error updating portfolio:', error)
+    alert('Failed to update portfolio. Please try again.')
+  }
+}
+
+const deletePortfolio = async (portfolio: any) => {
+  if (!confirm(`Are you sure you want to delete "${portfolio.name}"? This action cannot be undone.`)) {
+    return
+  }
+  
+  isDeletingPortfolio.value = true
+  try {
+    await useDeletePortfolio(portfolio.id)
+    await loadPortfolios()
+  } catch (error) {
+    console.error('Error deleting portfolio:', error)
+    alert(error.message || 'Failed to delete portfolio. Please try again.')
+  } finally {
+    isDeletingPortfolio.value = false
   }
 }
 

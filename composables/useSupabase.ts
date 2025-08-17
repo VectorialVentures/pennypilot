@@ -136,6 +136,61 @@ export const useCreatePortfolio = async (portfolioData: {
   return data
 }
 
+export const useUpdatePortfolio = async (portfolioId: string, updates: {
+  name?: string
+  description?: string
+  isDefault?: boolean
+  riskLevel?: string
+}) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) throw new Error('No user found')
+
+  const { data, error } = await supabase
+    .from('portfolios')
+    .update({
+      name: updates.name,
+      description: updates.description || null,
+      is_default: updates.isDefault,
+      risk_level: updates.riskLevel as any,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', portfolioId)
+    .eq('user_id', user.value.id) // Security: ensure user owns the portfolio
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+export const useDeletePortfolio = async (portfolioId: string) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) throw new Error('No user found')
+
+  // Check if this is the user's only portfolio
+  const { data: userPortfolios } = await supabase
+    .from('portfolios')
+    .select('id')
+    .eq('user_id', user.value.id)
+
+  if (userPortfolios && userPortfolios.length <= 1) {
+    throw new Error('Cannot delete your only portfolio. Create another portfolio first.')
+  }
+
+  const { error } = await supabase
+    .from('portfolios')
+    .delete()
+    .eq('id', portfolioId)
+    .eq('user_id', user.value.id) // Security: ensure user owns the portfolio
+
+  if (error) throw error
+  return true
+}
+
 export const usePortfolioAssets = async (portfolioId?: string) => {
   const supabase = useSupabaseClient<Database>()
   const user = useSupabaseUser()
@@ -466,4 +521,147 @@ export const usePortfoliosWithAnalysis = async () => {
   }))
 
   return portfoliosWithSortedAnalysis
+}
+
+export const useSearchSecurities = async (query: string, limit: number = 20) => {
+  const supabase = useSupabaseClient<Database>()
+  
+  if (!query.trim()) return []
+  
+  const searchTerm = query.trim().toUpperCase()
+  
+  const { data: securities, error } = await supabase
+    .from('securities')
+    .select('id, symbol, name, asset_type, exchange, sector')
+    .or(`symbol.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`)
+    .order('symbol')
+    .limit(limit)
+
+  if (error) throw error
+  return securities || []
+}
+
+export const useAddSecurityToPortfolio = async (portfolioId: string, securityData: {
+  securityId: string
+  amount: number
+  worth: number
+}) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) throw new Error('No user found')
+
+  // Verify user owns the portfolio
+  const { data: portfolio } = await supabase
+    .from('portfolios')
+    .select('id')
+    .eq('id', portfolioId)
+    .eq('user_id', user.value.id)
+    .single()
+
+  if (!portfolio) throw new Error('Portfolio not found or access denied')
+
+  // Check if security already exists in portfolio
+  const { data: existing } = await supabase
+    .from('portfolio_securities')
+    .select('id, amount, worth')
+    .eq('portfolio_id', portfolioId)
+    .eq('security_id', securityData.securityId)
+    .single()
+
+  if (existing) {
+    // Update existing holding
+    const { data, error } = await supabase
+      .from('portfolio_securities')
+      .update({
+        amount: existing.amount + securityData.amount,
+        worth: existing.worth + securityData.worth
+      })
+      .eq('id', existing.id)
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  } else {
+    // Create new holding
+    const { data, error } = await supabase
+      .from('portfolio_securities')
+      .insert({
+        portfolio_id: portfolioId,
+        security_id: securityData.securityId,
+        amount: securityData.amount,
+        worth: securityData.worth
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+    return data
+  }
+}
+
+export const useRemoveSecurityFromPortfolio = async (portfolioSecurityId: string) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) throw new Error('No user found')
+
+  // Verify user owns the portfolio through the portfolio_securities relationship
+  const { data: portfolioSecurity } = await supabase
+    .from('portfolio_securities')
+    .select(`
+      id,
+      portfolios!inner (
+        user_id
+      )
+    `)
+    .eq('id', portfolioSecurityId)
+    .eq('portfolios.user_id', user.value.id)
+    .single()
+
+  if (!portfolioSecurity) throw new Error('Security not found or access denied')
+
+  const { error } = await supabase
+    .from('portfolio_securities')
+    .delete()
+    .eq('id', portfolioSecurityId)
+
+  if (error) throw error
+  return true
+}
+
+export const useUpdatePortfolioSecurity = async (portfolioSecurityId: string, updates: {
+  amount?: number
+  worth?: number
+}) => {
+  const supabase = useSupabaseClient<Database>()
+  const user = useSupabaseUser()
+  
+  if (!user.value) throw new Error('No user found')
+
+  // Verify user owns the portfolio through the portfolio_securities relationship
+  const { data: portfolioSecurity } = await supabase
+    .from('portfolio_securities')
+    .select(`
+      id,
+      portfolios!inner (
+        user_id
+      )
+    `)
+    .eq('id', portfolioSecurityId)
+    .eq('portfolios.user_id', user.value.id)
+    .single()
+
+  if (!portfolioSecurity) throw new Error('Security not found or access denied')
+
+  const { data, error } = await supabase
+    .from('portfolio_securities')
+    .update(updates)
+    .eq('id', portfolioSecurityId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
 }

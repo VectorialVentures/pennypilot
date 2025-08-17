@@ -144,7 +144,8 @@ import {
   Bars3Icon,
   XMarkIcon,
   ArrowRightOnRectangleIcon,
-  CreditCardIcon
+  CreditCardIcon,
+  BuildingLibraryIcon
 } from '@heroicons/vue/24/outline'
 
 const supabase = useSupabaseClient()
@@ -158,6 +159,7 @@ const showNotifications = ref(false)
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
   { name: 'Portfolio', href: '/portfolio', icon: ChartBarIcon },
+  { name: 'Securities', href: '/securities', icon: BuildingLibraryIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ]
 

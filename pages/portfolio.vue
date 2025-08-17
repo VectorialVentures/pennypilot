@@ -18,11 +18,15 @@
           <h1 class="text-3xl font-bold gradient-text">Portfolio Management</h1>
           <p class="text-white/70 mt-2">Track and manage your investment positions</p>
         </div>
-        <div class="flex space-x-3 mt-4 sm:mt-0">
+        <div class="flex flex-wrap gap-3 mt-4 sm:mt-0">
           <button @click="showAddAssetModal = true" class="btn-primary">
             <PlusIcon class="w-4 h-4 mr-2" />
             Add Asset
           </button>
+          <NuxtLink to="/securities" class="btn-ghost">
+            <BuildingLibraryIcon class="w-4 h-4 mr-2" />
+            Browse Securities
+          </NuxtLink>
           <button class="btn-secondary">
             <ArrowDownTrayIcon class="w-4 h-4 mr-2" />
             Export
@@ -301,16 +305,129 @@
     </div>
   </div>
 
-  <!-- Add Asset Modal (placeholder) -->
+  <!-- Add Security Modal -->
   <div v-if="showAddAssetModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-    <div class="card-dark rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
-      <h3 class="text-lg font-semibold text-white mb-4">Add New Asset</h3>
-      <p class="text-white/70 mb-4">This feature will be fully implemented with real market data integration.</p>
-      <div class="flex justify-end space-x-3">
-        <button @click="showAddAssetModal = false" class="btn-secondary">
-          Close
-        </button>
-      </div>
+    <div class="card-dark rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
+      <h3 class="text-lg font-semibold text-white mb-4">Add Security to Portfolio</h3>
+      
+      <form @submit.prevent="addSecurityToPortfolio" class="space-y-4">
+        <!-- Security Search -->
+        <div>
+          <label class="block text-sm font-medium text-white mb-2">Search Security</label>
+          <div class="relative">
+            <input
+              v-model="securitySearchQuery"
+              @input="searchSecurities"
+              type="text"
+              placeholder="Search by symbol or name (e.g., AAPL, Apple)"
+              class="input-field w-full pr-10"
+              autocomplete="off"
+            />
+            <MagnifyingGlassIcon class="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/40 w-4 h-4" />
+          </div>
+          
+          <!-- Search Results -->
+          <div v-if="searchResults.length > 0" class="mt-2 max-h-48 overflow-y-auto border border-white/20 rounded-lg bg-background-800">
+            <button
+              v-for="security in searchResults"
+              :key="security.id"
+              type="button"
+              @click="selectSecurity(security)"
+              class="w-full text-left px-4 py-3 hover:bg-white/10 transition-colors duration-200 border-b border-white/10 last:border-b-0"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <div class="font-medium text-white">{{ security.symbol }}</div>
+                  <div class="text-sm text-white/70">{{ security.name }}</div>
+                </div>
+                <div class="text-right text-sm text-white/60">
+                  <div>{{ security.asset_type || 'Stock' }}</div>
+                  <div v-if="security.exchange">{{ security.exchange }}</div>
+                </div>
+              </div>
+            </button>
+          </div>
+          
+          <div v-else-if="securitySearchQuery.length > 2 && !isSearching" class="mt-2 text-sm text-white/60">
+            No securities found. Try a different search term.
+          </div>
+        </div>
+
+        <!-- Selected Security -->
+        <div v-if="selectedSecurity" class="border border-white/20 rounded-lg p-4 bg-white/5">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <div class="font-medium text-white">{{ selectedSecurity.symbol }}</div>
+              <div class="text-sm text-white/70">{{ selectedSecurity.name }}</div>
+            </div>
+            <button
+              type="button"
+              @click="selectedSecurity = null"
+              class="text-white/60 hover:text-white"
+              title="Remove selection"
+            >
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Transaction Details -->
+        <div v-if="selectedSecurity" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">Number of Shares</label>
+            <input
+              v-model.number="transactionData.amount"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              placeholder="e.g., 10"
+              class="input-field w-full"
+            />
+          </div>
+          
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">Price per Share ($)</label>
+            <input
+              v-model.number="transactionData.pricePerShare"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              placeholder="e.g., 150.00"
+              class="input-field w-full"
+            />
+          </div>
+          
+          <div class="bg-white/5 border border-white/20 rounded-lg p-3">
+            <div class="flex justify-between items-center">
+              <span class="text-white/70">Total Investment:</span>
+              <span class="font-medium text-white">
+                ${{ ((transactionData.amount || 0) * (transactionData.pricePerShare || 0)).toFixed(2) }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-4">
+          <button
+            type="button"
+            @click="closeAddAssetModal"
+            class="btn-secondary"
+            :disabled="isAddingSecurity"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            class="btn-primary"
+            :disabled="!selectedSecurity || !transactionData.amount || !transactionData.pricePerShare || isAddingSecurity"
+          >
+            <span v-if="isAddingSecurity">Adding...</span>
+            <span v-else>Add to Portfolio</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
   </div>
@@ -325,7 +442,9 @@ import {
   PencilIcon,
   TrashIcon,
   ChartBarIcon,
-  NewspaperIcon
+  NewspaperIcon,
+  XMarkIcon,
+  BuildingLibraryIcon
 } from '@heroicons/vue/24/outline'
 import type { Database } from '~/types/database'
 
@@ -346,6 +465,17 @@ const user = useSupabaseUser()
 const portfolios = ref<any[]>([])
 const assets = ref<any[]>([])
 const aiRecommendations = ref<any[]>([])
+
+// Security Management
+const securitySearchQuery = ref('')
+const searchResults = ref<any[]>([])
+const selectedSecurity = ref<any>(null)
+const isSearching = ref(false)
+const isAddingSecurity = ref(false)
+const transactionData = ref({
+  amount: null as number | null,
+  pricePerShare: null as number | null
+})
 
 // Load portfolios and assets on mount
 onMounted(async () => {
@@ -535,9 +665,87 @@ const editAsset = (asset: any) => {
   console.log('Editing asset:', asset.symbol)
 }
 
-const removeAsset = (asset: any) => {
-  if (confirm(`Are you sure you want to remove ${asset.symbol} from your portfolio?`)) {
-    console.log('Removing asset:', asset.symbol)
+const removeAsset = async (asset: any) => {
+  if (!confirm(`Are you sure you want to remove ${asset.symbol} from your portfolio?`)) {
+    return
+  }
+
+  try {
+    await useRemoveSecurityFromPortfolio(asset.id)
+    await loadPortfolioAssets()
+    alert(`Successfully removed ${asset.symbol} from your portfolio.`)
+  } catch (error) {
+    console.error('Error removing asset:', error)
+    alert('Failed to remove asset from portfolio. Please try again.')
+  }
+}
+
+// Security Management Functions
+const searchSecurities = async () => {
+  const query = securitySearchQuery.value.trim()
+  if (query.length < 2) {
+    searchResults.value = []
+    return
+  }
+
+  isSearching.value = true
+  try {
+    const results = await useSearchSecurities(query, 10)
+    searchResults.value = results
+  } catch (error) {
+    console.error('Error searching securities:', error)
+    searchResults.value = []
+  } finally {
+    isSearching.value = false
+  }
+}
+
+const selectSecurity = (security: any) => {
+  selectedSecurity.value = security
+  searchResults.value = []
+  securitySearchQuery.value = security.symbol
+}
+
+const closeAddAssetModal = () => {
+  showAddAssetModal.value = false
+  // Reset form
+  securitySearchQuery.value = ''
+  searchResults.value = []
+  selectedSecurity.value = null
+  transactionData.value = { amount: null, pricePerShare: null }
+}
+
+const addSecurityToPortfolio = async () => {
+  if (!selectedSecurity.value || !transactionData.value.amount || !transactionData.value.pricePerShare) {
+    return
+  }
+
+  if (selectedPortfolioId.value === 'all') {
+    alert('Please select a specific portfolio to add the security to.')
+    return
+  }
+
+  isAddingSecurity.value = true
+  try {
+    const totalWorth = transactionData.value.amount * transactionData.value.pricePerShare
+
+    await useAddSecurityToPortfolio(selectedPortfolioId.value, {
+      securityId: selectedSecurity.value.id,
+      amount: transactionData.value.amount,
+      worth: totalWorth
+    })
+
+    // Close modal and reload data
+    closeAddAssetModal()
+    await loadPortfolioAssets()
+    
+    // Show success message
+    alert(`Successfully added ${transactionData.value.amount} shares of ${selectedSecurity.value.symbol} to your portfolio!`)
+  } catch (error) {
+    console.error('Error adding security to portfolio:', error)
+    alert('Failed to add security to portfolio. Please try again.')
+  } finally {
+    isAddingSecurity.value = false
   }
 }
 
