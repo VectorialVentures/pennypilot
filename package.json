@@ -2,6 +2,7 @@
   "name": "pennypilot",
   "private": true,
   "version": "1.0.0",
+  "type": "module",
   "description": "AI-powered stock portfolio management platform",
   "scripts": {
     "build": "NODE_OPTIONS='--disable-warning=DEP0040' nuxt build",
@@ -9,8 +10,8 @@
     "generate": "NODE_OPTIONS='--disable-warning=DEP0040' nuxt generate",
     "preview": "NODE_OPTIONS='--disable-warning=DEP0040' nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "NODE_OPTIONS='--disable-warning=DEP0040' eslint --ext .ts,.vue --ignore-path .gitignore .",
-    "lint:fix": "NODE_OPTIONS='--disable-warning=DEP0040' eslint --ext .ts,.vue --ignore-path .gitignore . --fix",
+    "lint": "NODE_OPTIONS='--disable-warning=DEP0040' eslint .",
+    "lint:fix": "NODE_OPTIONS='--disable-warning=DEP0040' eslint . --fix",
     "type-check": "NODE_OPTIONS='--disable-warning=DEP0040' vue-tsc --noEmit"
   },
   "devDependencies": {

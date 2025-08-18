@@ -277,6 +277,114 @@
         </div>
       </div>
 
+      <!-- Portfolio Value Computation Section -->
+      <div class="card-dark mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Portfolio Value Computation</h2>
+            <p class="text-sm text-white/70">Compute current and historical portfolio values with accurate security holdings</p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button
+              @click="updateCurrentValues"
+              :disabled="currentValuesUpdating"
+              class="btn-secondary"
+              :class="{ 'opacity-50 cursor-not-allowed': currentValuesUpdating }"
+            >
+              <div v-if="currentValuesUpdating" class="flex items-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Updating...</span>
+              </div>
+              <span v-else>Update Current Values</span>
+            </button>
+            <button
+              @click="showHistoricalModal = true"
+              :disabled="historicalValuesComputing"
+              class="btn-primary"
+              :class="{ 'opacity-50 cursor-not-allowed': historicalValuesComputing }"
+            >
+              <div v-if="historicalValuesComputing" class="flex items-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Computing...</span>
+              </div>
+              <span v-else>Compute Historical Values</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Values Results -->
+        <div v-if="currentValuesResult" class="mt-6 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': currentValuesResult.success,
+               'border-red-500/50 bg-red-500/10': !currentValuesResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">{{ currentValuesResult.message }}</div>
+              <div v-if="currentValuesResult.results" class="grid grid-cols-4 gap-4">
+                <div class="text-center">
+                  <div class="text-white font-medium">{{ currentValuesResult.results.total }}</div>
+                  <div class="text-white/60">Total Portfolios</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-green-400 font-medium">{{ currentValuesResult.results.updated }}</div>
+                  <div class="text-white/60">Updated</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-medium">${{ currentValuesResult.results.totalValue?.toFixed(0) || 0 }}</div>
+                  <div class="text-white/60">Total Value</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-red-400 font-medium">{{ currentValuesResult.results.errors }}</div>
+                  <div class="text-white/60">Errors</div>
+                </div>
+              </div>
+            </div>
+            <button @click="currentValuesResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Historical Values Results -->
+        <div v-if="historicalValuesResult" class="mt-6 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': historicalValuesResult.success,
+               'border-red-500/50 bg-red-500/10': !historicalValuesResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">{{ historicalValuesResult.message }}</div>
+              <div v-if="historicalValuesResult.results" class="grid grid-cols-5 gap-4">
+                <div class="text-center">
+                  <div class="text-white font-medium">{{ historicalValuesResult.results.processed }}</div>
+                  <div class="text-white/60">Portfolios</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-green-400 font-medium">{{ historicalValuesResult.results.totalDays }}</div>
+                  <div class="text-white/60">Days Processed</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-medium">{{ historicalValuesResult.results.totalValues }}</div>
+                  <div class="text-white/60">Values Computed</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-yellow-400 font-medium">{{ historicalValuesResult.results.processingTimeSeconds }}s</div>
+                  <div class="text-white/60">Processing Time</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-red-400 font-medium">{{ historicalValuesResult.results.errors }}</div>
+                  <div class="text-white/60">Errors</div>
+                </div>
+              </div>
+            </div>
+            <button @click="historicalValuesResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- AI Assessments Section -->
       <div class="card-dark mb-8">
         <div class="flex items-center justify-between mb-6">
@@ -389,6 +497,77 @@
         </div>
       </div>
     </div>
+
+    <!-- Historical Values Modal -->
+    <div v-if="showHistoricalModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="card-dark rounded-lg shadow-xl max-w-lg w-full mx-4 p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-white">Historical Portfolio Values</h3>
+          <button @click="showHistoricalModal = false" class="text-white/60 hover:text-white">
+            <XMarkIcon class="w-5 h-5" />
+          </button>
+        </div>
+        
+        <form @submit.prevent="computeHistoricalValues" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">Start Date</label>
+            <input
+              v-model="historicalOptions.startDate"
+              type="date"
+              class="input-field w-full"
+              :max="historicalOptions.endDate"
+            />
+            <p class="text-xs text-white/60 mt-1">Leave empty to use portfolio creation date</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-white mb-2">End Date</label>
+            <input
+              v-model="historicalOptions.endDate"
+              type="date"
+              class="input-field w-full"
+              :min="historicalOptions.startDate"
+              :max="today"
+            />
+            <p class="text-xs text-white/60 mt-1">Leave empty to use today's date</p>
+          </div>
+
+          <div>
+            <label class="flex items-center space-x-2">
+              <input
+                v-model="historicalOptions.forceRecalculate"
+                type="checkbox"
+                class="rounded border-gray-300"
+              />
+              <span class="text-sm text-white">Force recalculate existing values</span>
+            </label>
+            <p class="text-xs text-white/60 mt-1">By default, only missing historical values are computed</p>
+          </div>
+
+          <div class="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              @click="showHistoricalModal = false"
+              class="btn-secondary"
+              :disabled="historicalValuesComputing"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              class="btn-primary"
+              :disabled="historicalValuesComputing"
+            >
+              <div v-if="historicalValuesComputing" class="flex items-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Computing...</span>
+              </div>
+              <span v-else>Start Computation</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -406,12 +585,17 @@ const assessmentsFetching = ref(false)
 const jobsLoading = ref(false)
 const jobsChecking = ref(false)
 const jobsCancelling = ref(new Set<string>())
+const currentValuesUpdating = ref(false)
+const historicalValuesComputing = ref(false)
+const showHistoricalModal = ref(false)
 const assessmentMode = ref<'batch' | 'immediate'>('batch')
 const newsResult = ref<any>(null)
 const pricesResult = ref<any>(null)
 const assessmentResult = ref<any>(null)
 const jobCheckResult = ref<any>(null)
 const jobCancelResult = ref<any>(null)
+const currentValuesResult = ref<any>(null)
+const historicalValuesResult = ref<any>(null)
 const activeJobs = ref<any[]>([])
 const activityLog = ref<Array<{
   timestamp: Date
@@ -419,6 +603,14 @@ const activityLog = ref<Array<{
   details: string
   type: 'success' | 'error' | 'info'
 }>>([])
+
+// Historical options
+const today = new Date().toISOString().split('T')[0]
+const historicalOptions = ref({
+  startDate: '',
+  endDate: today,
+  forceRecalculate: false
+})
 
 // Methods
 const fetchPortfolioNews = async () => {
@@ -618,6 +810,80 @@ const cancelJob = async (jobId: string) => {
     addActivity('Job cancellation failed', jobCancelResult.value.message, 'error')
   } finally {
     jobsCancelling.value.delete(jobId)
+  }
+}
+
+const updateCurrentValues = async () => {
+  currentValuesUpdating.value = true
+  currentValuesResult.value = null
+  
+  try {
+    addActivity('Starting current value update', 'Updating current portfolio values using latest security prices', 'info')
+    
+    const result = await $fetch('/api/portfolios/update-all-values', {
+      method: 'POST'
+    })
+    
+    currentValuesResult.value = result
+    
+    addActivity(
+      'Current values updated', 
+      `Updated ${result.results?.updated || 0} portfolios with total value of $${result.results?.totalValue?.toFixed(0) || 0}`,
+      'success'
+    )
+  } catch (error) {
+    console.error('Error updating current values:', error)
+    currentValuesResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+    
+    addActivity('Current value update failed', currentValuesResult.value.message, 'error')
+  } finally {
+    currentValuesUpdating.value = false
+  }
+}
+
+const computeHistoricalValues = async () => {
+  historicalValuesComputing.value = true
+  historicalValuesResult.value = null
+  
+  try {
+    const { startDate, endDate, forceRecalculate } = historicalOptions.value
+    
+    addActivity(
+      'Starting historical computation', 
+      `Computing historical portfolio values from ${startDate || 'portfolio creation'} to ${endDate || 'today'}`,
+      'info'
+    )
+    
+    const result = await $fetch('/api/portfolios/compute-historical-values', {
+      method: 'POST',
+      body: {
+        startDate: startDate || null,
+        endDate: endDate || null,
+        forceRecalculate
+      }
+    })
+    
+    historicalValuesResult.value = result
+    showHistoricalModal.value = false
+    
+    addActivity(
+      'Historical computation completed', 
+      `Computed ${result.results?.totalValues || 0} values across ${result.results?.processed || 0} portfolios in ${result.results?.processingTimeSeconds || 0}s`,
+      result.success ? 'success' : 'error'
+    )
+  } catch (error) {
+    console.error('Error computing historical values:', error)
+    historicalValuesResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+    
+    addActivity('Historical computation failed', historicalValuesResult.value.message, 'error')
+  } finally {
+    historicalValuesComputing.value = false
   }
 }
 

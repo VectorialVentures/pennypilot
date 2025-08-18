@@ -1,5 +1,11 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 import type { Database } from '~/types/database'
+import { 
+  getBatchStatus, 
+  downloadBatchResults, 
+  parseOpenAIResponse, 
+  validateAssessmentResponse 
+} from '~/server/utils/OpenAIService'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -50,7 +56,7 @@ export default defineEventHandler(async (event) => {
 
       try {
         // Check batch status with OpenAI
-        const batchStatus = await checkBatchStatus(job.external_id, config.openaiApiKey)
+        const batchStatus = await getBatchStatus(job.external_id, config.openaiApiKey)
         
         if (!batchStatus) {
           console.error(`Failed to get batch status for job ${job.id}`)
@@ -169,25 +175,7 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-async function checkBatchStatus(batchId: string, openaiApiKey: string) {
-  try {
-    const response = await fetch(`https://api.openai.com/v1/batches/${batchId}`, {
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`
-      }
-    })
-
-    if (!response.ok) {
-      console.error(`OpenAI batch status error: ${response.status} ${response.statusText}`)
-      return null
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Error checking batch status:', error)
-    return null
-  }
-}
+// checkBatchStatus function moved to OpenAI service
 
 async function processBatchResults(job: any, batchStatus: any, openaiApiKey: string, supabase: any) {
   try {
@@ -198,21 +186,15 @@ async function processBatchResults(job: any, batchStatus: any, openaiApiKey: str
       }
     }
 
-    // Download the results file
-    const resultsResponse = await fetch(`https://api.openai.com/v1/files/${batchStatus.output_file_id}/content`, {
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`
-      }
-    })
-
-    if (!resultsResponse.ok) {
+    // Download the results file using the service
+    const resultsText = await downloadBatchResults(batchStatus.output_file_id, openaiApiKey)
+    
+    if (!resultsText) {
       return {
         success: false,
-        error: `Failed to download results: ${resultsResponse.status}`
+        error: 'Failed to download batch results'
       }
     }
-
-    const resultsText = await resultsResponse.text()
     const resultLines = resultsText.trim().split('\n')
     
     let assessmentsCreated = 0
@@ -231,13 +213,8 @@ async function processBatchResults(job: any, batchStatus: any, openaiApiKey: str
     let errorResults = []
     if (batchStatus.error_file_id) {
       try {
-        const errorResponse = await fetch(`https://api.openai.com/v1/files/${batchStatus.error_file_id}/content`, {
-          headers: {
-            'Authorization': `Bearer ${openaiApiKey}`
-          }
-        })
-        if (errorResponse.ok) {
-          const errorText = await errorResponse.text()
+        const errorText = await downloadBatchResults(batchStatus.error_file_id, openaiApiKey)
+        if (errorText) {
           errorResults = errorText.trim().split('\n').filter(line => line.trim())
           console.log(`Found ${errorResults.length} errors in batch`)
         }
@@ -255,57 +232,50 @@ async function processBatchResults(job: any, batchStatus: any, openaiApiKey: str
           const securityInfo = securityMap.get(result.custom_id)
           
           if (securityInfo) {
-            try {
-              const assessment = JSON.parse(content)
-              
-              if (assessment.analysis && assessment.recommendation) {
-                // Validate recommendation against allowed values
-                const validRecommendations = ['buy', 'hold', 'sell']
-                const normalizedRecommendation = assessment.recommendation.toLowerCase()
-                
-                if (!validRecommendations.includes(normalizedRecommendation)) {
-                  console.error(`Invalid recommendation for ${securityInfo.symbol}: ${assessment.recommendation}`)
-                  errorsEncountered++
-                  continue
-                }
+            // Parse and validate the response using the service
+            const parsedResponse = parseOpenAIResponse(content, securityInfo.symbol)
+            
+            if (!parsedResponse) {
+              errorsEncountered++
+              continue
+            }
+            
+            const validatedAssessment = validateAssessmentResponse(parsedResponse, securityInfo.symbol)
+            
+            if (!validatedAssessment) {
+              errorsEncountered++
+              continue
+            }
 
-                // Check for existing assessment today to prevent duplicates
-                const today = new Date().toISOString().split('T')[0]
-                const { data: existingAssessment } = await supabase
-                  .from('security_analysis')
-                  .select('id')
-                  .eq('security_id', securityInfo.security_id)
-                  .gte('created_at', today + 'T00:00:00.000Z')
-                  .lt('created_at', today + 'T23:59:59.999Z')
-                  .single()
+            // Check for existing assessment today to prevent duplicates
+            const today = new Date().toISOString().split('T')[0]
+            const { data: existingAssessment } = await supabase
+              .from('security_analysis')
+              .select('id')
+              .eq('security_id', securityInfo.security_id)
+              .gte('created_at', today + 'T00:00:00.000Z')
+              .lt('created_at', today + 'T23:59:59.999Z')
+              .single()
 
-                if (existingAssessment) {
-                  console.log(`Assessment already exists for ${securityInfo.symbol} today, skipping`)
-                  continue
-                }
+            if (existingAssessment) {
+              console.log(`Assessment already exists for ${securityInfo.symbol} today, skipping`)
+              continue
+            }
 
-                // Insert into security_analysis table
-                const { error: insertError } = await supabase
-                  .from('security_analysis')
-                  .insert({
-                    security_id: securityInfo.security_id,
-                    assessment: assessment.analysis,
-                    recommendation: normalizedRecommendation
-                  })
+            // Insert into security_analysis table
+            const { error: insertError } = await supabase
+              .from('security_analysis')
+              .insert({
+                security_id: securityInfo.security_id,
+                assessment: validatedAssessment.analysis,
+                recommendation: validatedAssessment.recommendation
+              })
 
-                if (!insertError) {
-                  assessmentsCreated++
-                  console.log(`Created assessment for ${securityInfo.symbol}`)
-                } else {
-                  console.error(`Error inserting assessment for ${securityInfo.symbol}:`, insertError)
-                  errorsEncountered++
-                }
-              } else {
-                console.error(`Missing analysis or recommendation for ${securityInfo.symbol}`)
-                errorsEncountered++
-              }
-            } catch (parseError) {
-              console.error(`Error parsing assessment JSON for ${securityInfo.symbol}:`, parseError)
+            if (!insertError) {
+              assessmentsCreated++
+              console.log(`Created assessment for ${securityInfo.symbol}`)
+            } else {
+              console.error(`Error inserting assessment for ${securityInfo.symbol}:`, insertError)
               errorsEncountered++
             }
           } else {

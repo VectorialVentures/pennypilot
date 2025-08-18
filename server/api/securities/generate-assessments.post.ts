@@ -1,5 +1,13 @@
 import { serverSupabaseServiceRole } from '#supabase/server'
 import type { Database } from '~/types/database'
+import { 
+  callOpenAI, 
+  submitBatch, 
+  parseOpenAIResponse, 
+  validateAssessmentResponse,
+  SECURITY_ASSESSMENT_SCHEMA,
+  type BatchRequestOptions 
+} from '~/server/utils/OpenAIService'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
@@ -130,21 +138,45 @@ async function processBatchAssessments(securitiesToAssess: any[], supabase: any,
   console.log(`Creating OpenAI batch job for ${securitiesToAssess.length} securities`)
 
   // Create batch requests for all securities
-  const batchRequests = []
+  const batchRequests: BatchRequestOptions[] = []
   const securityMetadata = [] // Store metadata separately since OpenAI doesn't preserve custom fields
   
   for (const security of securitiesToAssess) {
     const assessmentData = await gatherSecurityData(security, supabase)
     if (assessmentData) {
-      const batchRequest = await createBatchRequest(security, assessmentData)
-      if (batchRequest) {
+      try {
+        const prompt = createSecurityAssessmentPrompt(security, assessmentData)
+        
+        // Use a safer custom_id format that avoids symbol parsing issues
+        const safeCustomId = `assessment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        
+        const batchRequest: BatchRequestOptions = {
+          custom_id: safeCustomId,
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are a professional financial analyst providing investment recommendations.'
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 1000,
+          json_schema: SECURITY_ASSESSMENT_SCHEMA
+        }
+        
         batchRequests.push(batchRequest)
         securityMetadata.push({
-          custom_id: batchRequest.custom_id,
+          custom_id: safeCustomId,
           security_id: security.id,
           symbol: security.symbol,
           name: security.name
         })
+      } catch (error) {
+        console.error(`Error creating batch request for ${security.symbol}:`, error)
       }
     }
   }
@@ -157,8 +189,8 @@ async function processBatchAssessments(securitiesToAssess: any[], supabase: any,
     }
   }
 
-  // Submit batch to OpenAI
-  const batchResult = await submitOpenAIBatch(batchRequests, config.openaiApiKey)
+  // Submit batch to OpenAI using the service
+  const batchResult = await submitBatch(batchRequests, config.openaiApiKey)
   
   if (!batchResult) {
     return {
@@ -339,56 +371,55 @@ async function processImmediateAssessments(securitiesToAssess: any[], supabase: 
   }
 }
 
-async function createBatchRequest(security: any, assessmentData: any) {
-  try {
-    // Calculate price performance metrics
-    const prices = assessmentData.priceHistory
-    let priceMetrics = 'No recent price data available'
+function createSecurityAssessmentPrompt(security: any, assessmentData: any): string {
+  // Calculate price performance metrics
+  const prices = assessmentData.priceHistory
+  let priceMetrics = 'No recent price data available'
+  
+  if (prices.length > 0) {
+    const currentPrice = prices[0].close
+    const oldestPrice = prices[prices.length - 1].close
+    const monthlyReturn = ((currentPrice - oldestPrice) / oldestPrice * 100).toFixed(2)
     
-    if (prices.length > 0) {
-      const currentPrice = prices[0].close
-      const oldestPrice = prices[prices.length - 1].close
-      const monthlyReturn = ((currentPrice - oldestPrice) / oldestPrice * 100).toFixed(2)
-      
-      const highs = prices.map(p => p.high)
-      const lows = prices.map(p => p.low)
-      const monthHigh = Math.max(...highs)
-      const monthLow = Math.min(...lows)
-      
-      priceMetrics = `Current: $${currentPrice}, Monthly return: ${monthlyReturn}%, Month high: $${monthHigh}, Month low: $${monthLow}`
-    }
+    const highs = prices.map(p => p.high)
+    const lows = prices.map(p => p.low)
+    const monthHigh = Math.max(...highs)
+    const monthLow = Math.min(...lows)
     
-    // Summarize news sentiment
-    const news = assessmentData.newsArticles
-    let newsSummary = 'No recent news available'
+    priceMetrics = `Current: $${currentPrice}, Monthly return: ${monthlyReturn}%, Month high: $${monthHigh}, Month low: $${monthLow}`
+  }
+  
+  // Summarize news sentiment
+  const news = assessmentData.newsArticles
+  let newsSummary = 'No recent news available'
+  
+  if (news.length > 0) {
+    const sentiments = news.map(n => n.sentiment).filter(s => s)
+    const positive = sentiments.filter(s => s === 'positive').length
+    const negative = sentiments.filter(s => s === 'negative').length
+    const neutral = sentiments.filter(s => s === 'neutral').length
     
-    if (news.length > 0) {
-      const sentiments = news.map(n => n.sentiment).filter(s => s)
-      const positive = sentiments.filter(s => s === 'positive').length
-      const negative = sentiments.filter(s => s === 'negative').length
-      const neutral = sentiments.filter(s => s === 'neutral').length
-      
-      const recentNews = news.slice(0, 3).map(n => `"${n.summary}"`).join('; ')
-      newsSummary = `Sentiment: ${positive} positive, ${negative} negative, ${neutral} neutral. Recent headlines: ${recentNews}`
-    }
+    const recentNews = news.slice(0, 3).map(n => `"${n.summary}"`).join('; ')
+    newsSummary = `Sentiment: ${positive} positive, ${negative} negative, ${neutral} neutral. Recent headlines: ${recentNews}`
+  }
 
-    // Summarize prior assessments for context
-    const priorAssessments = assessmentData.priorAssessments
-    let priorContext = ''
+  // Summarize prior assessments for context
+  const priorAssessments = assessmentData.priorAssessments
+  let priorContext = ''
+  
+  if (priorAssessments.length > 0) {
+    const assessmentSummaries = priorAssessments.map((assessment, index) => {
+      const date = new Date(assessment.created_at).toLocaleDateString()
+      const shortAnalysis = assessment.assessment.substring(0, 200) + (assessment.assessment.length > 200 ? '...' : '')
+      return `${index + 1}. ${date}: ${assessment.recommendation.toUpperCase()} - ${shortAnalysis}`
+    }).join('\n')
     
-    if (priorAssessments.length > 0) {
-      const assessmentSummaries = priorAssessments.map((assessment, index) => {
-        const date = new Date(assessment.created_at).toLocaleDateString()
-        const shortAnalysis = assessment.assessment.substring(0, 200) + (assessment.assessment.length > 200 ? '...' : '')
-        return `${index + 1}. ${date}: ${assessment.recommendation.toUpperCase()} - ${shortAnalysis}`
-      }).join('\n')
-      
-      priorContext = `
+    priorContext = `
 Previous Assessments (for context and consistency):
 ${assessmentSummaries}`
-    }
-    
-    const prompt = `You are a financial analyst providing investment recommendations. Analyze the following security and provide a concise assessment with a recommendation.
+  }
+  
+  return `You are a financial analyst providing investment recommendations. Analyze the following security and provide a concise assessment with a recommendation.
 
 Security: ${assessmentData.security.name} (${assessmentData.security.symbol})
 Exchange: ${assessmentData.security.exchange}
@@ -402,216 +433,49 @@ News Analysis (Past Month): ${newsSummary}${priorContext}
 Please provide:
 1. A comprehensive but concise analysis (3-4 paragraphs) covering fundamentals, technical analysis, and market sentiment
 2. A clear investment recommendation: BUY, HOLD, or SELL
-3. Consider any previous assessments for consistency, but prioritize current data and market conditions
-
-Format your response as JSON:
-{
-  "analysis": "Your detailed analysis here...",
-  "recommendation": "buy|hold|sell"
-}`
-
-    // Use a safer custom_id format that avoids symbol parsing issues
-    const safeCustomId = `assessment_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    
-    return {
-      custom_id: safeCustomId,
-      method: "POST",
-      url: "/v1/chat/completions",
-      body: {
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: "You are a professional financial analyst. Always respond with valid JSON containing analysis and recommendation fields."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      }
-    }
-  } catch (error) {
-    console.error(`Error creating batch request for ${security.symbol}:`, error)
-    return null
-  }
+3. Consider any previous assessments for consistency, but prioritize current data and market conditions`
 }
 
-async function submitOpenAIBatch(batchRequests: any[], openaiApiKey: string) {
-  try {
-    // Create the batch file content
-    const batchContent = batchRequests.map(req => JSON.stringify(req)).join('\n')
-    
-    // Upload batch file to OpenAI
-    const fileResponse = await fetch('https://api.openai.com/v1/files', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: (() => {
-        const formData = new FormData()
-        formData.append('purpose', 'batch')
-        formData.append('file', new Blob([batchContent], { type: 'application/jsonl' }), 'batch_requests.jsonl')
-        return formData
-      })()
-    })
-
-    if (!fileResponse.ok) {
-      console.error(`OpenAI file upload error: ${fileResponse.status} ${fileResponse.statusText}`)
-      return null
-    }
-
-    const fileResult = await fileResponse.json()
-    console.log(`Uploaded batch file: ${fileResult.id}`)
-
-    // Create batch job
-    const batchResponse = await fetch('https://api.openai.com/v1/batches', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        input_file_id: fileResult.id,
-        endpoint: '/v1/chat/completions',
-        completion_window: '24h'
-      })
-    })
-
-    if (!batchResponse.ok) {
-      console.error(`OpenAI batch creation error: ${batchResponse.status} ${batchResponse.statusText}`)
-      return null
-    }
-
-    const batchResult = await batchResponse.json()
-    console.log(`Created batch job: ${batchResult.id}`)
-
-    return {
-      batch_id: batchResult.id,
-      file_id: fileResult.id,
-      status: batchResult.status
-    }
-
-  } catch (error) {
-    console.error('Error submitting OpenAI batch:', error)
-    return null
-  }
-}
+// This function is now replaced by the OpenAI service
+// Keeping for reference during migration
+// TODO: Remove after migration is complete
 
 async function generateImmediateAssessment(security: any, assessmentData: any, openaiApiKey: string) {
   try {
-    // Calculate price performance metrics (same logic as batch)
-    const prices = assessmentData.priceHistory
-    let priceMetrics = 'No recent price data available'
-    
-    if (prices.length > 0) {
-      const currentPrice = prices[0].close
-      const oldestPrice = prices[prices.length - 1].close
-      const monthlyReturn = ((currentPrice - oldestPrice) / oldestPrice * 100).toFixed(2)
-      
-      const highs = prices.map(p => p.high)
-      const lows = prices.map(p => p.low)
-      const monthHigh = Math.max(...highs)
-      const monthLow = Math.min(...lows)
-      
-      priceMetrics = `Current: $${currentPrice}, Monthly return: ${monthlyReturn}%, Month high: $${monthHigh}, Month low: $${monthLow}`
-    }
-    
-    // Summarize news sentiment (same logic as batch)
-    const news = assessmentData.newsArticles
-    let newsSummary = 'No recent news available'
-    
-    if (news.length > 0) {
-      const sentiments = news.map(n => n.sentiment).filter(s => s)
-      const positive = sentiments.filter(s => s === 'positive').length
-      const negative = sentiments.filter(s => s === 'negative').length
-      const neutral = sentiments.filter(s => s === 'neutral').length
-      
-      const recentNews = news.slice(0, 3).map(n => `"${n.summary}"`).join('; ')
-      newsSummary = `Sentiment: ${positive} positive, ${negative} negative, ${neutral} neutral. Recent headlines: ${recentNews}`
-    }
+    const prompt = createSecurityAssessmentPrompt(security, assessmentData)
 
-    // Summarize prior assessments for context (same logic as batch)
-    const priorAssessments = assessmentData.priorAssessments
-    let priorContext = ''
-    
-    if (priorAssessments.length > 0) {
-      const assessmentSummaries = priorAssessments.map((assessment, index) => {
-        const date = new Date(assessment.created_at).toLocaleDateString()
-        const shortAnalysis = assessment.assessment.substring(0, 200) + (assessment.assessment.length > 200 ? '...' : '')
-        return `${index + 1}. ${date}: ${assessment.recommendation.toUpperCase()} - ${shortAnalysis}`
-      }).join('\n')
-      
-      priorContext = `
-Previous Assessments (for context and consistency):
-${assessmentSummaries}`
-    }
-    
-    const prompt = `You are a financial analyst providing investment recommendations. Analyze the following security and provide a concise assessment with a recommendation.
+    // Make API call using the service
+    const result = await callOpenAI({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a professional financial analyst providing investment recommendations.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000,
+      json_schema: SECURITY_ASSESSMENT_SCHEMA
+    }, openaiApiKey)
 
-Security: ${assessmentData.security.name} (${assessmentData.security.symbol})
-Exchange: ${assessmentData.security.exchange}
-Sector: ${assessmentData.security.sector || 'Unknown'}
-Industry: ${assessmentData.security.industry || 'Unknown'}
-
-Price Performance (Past Month): ${priceMetrics}
-
-News Analysis (Past Month): ${newsSummary}${priorContext}
-
-Please provide:
-1. A comprehensive but concise analysis (3-4 paragraphs) covering fundamentals, technical analysis, and market sentiment
-2. A clear investment recommendation: BUY, HOLD, or SELL
-3. Consider any previous assessments for consistency, but prioritize current data and market conditions
-
-Format your response as JSON:
-{
-  "analysis": "Your detailed analysis here...",
-  "recommendation": "buy|hold|sell"
-}`
-
-    // Make direct API call to OpenAI
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a professional financial analyst. Always respond with valid JSON containing analysis and recommendation fields.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 1000
-      })
-    })
-
-    if (!response.ok) {
-      console.error(`OpenAI API error for ${security.symbol}: ${response.status} ${response.statusText}`)
-      return null
-    }
-
-    const result = await response.json()
-    
-    if (!result.choices?.[0]?.message?.content) {
+    if (!result?.choices?.[0]?.message?.content) {
       console.error(`No content in OpenAI response for ${security.symbol}`)
       return null
     }
 
-    // Parse the JSON response
+    // Parse and validate the response using the service
     const content = result.choices[0].message.content
-    const assessment = JSON.parse(content)
+    const parsedResponse = parseOpenAIResponse(content, security.symbol)
     
-    return assessment
+    if (!parsedResponse) {
+      return null
+    }
+    
+    return validateAssessmentResponse(parsedResponse, security.symbol)
 
   } catch (error) {
     console.error(`Error generating immediate assessment for ${security.symbol}:`, error)
