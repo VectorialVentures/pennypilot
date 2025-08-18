@@ -690,3 +690,64 @@ export const useFetchPortfolioNews = async () => {
     }
   }
 }
+
+export const useGenerateAIAssessments = async () => {
+  try {
+    const response = await $fetch('/api/securities/generate-assessments', {
+      method: 'POST'
+    })
+    return response
+  } catch (error) {
+    console.error('Error generating AI assessments:', error)
+    // Return a safe fallback response structure
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to generate AI assessments',
+      results: {
+        total: 0,
+        processed: 0,
+        errors: 1
+      },
+      details: []
+    }
+  }
+}
+
+export const useCheckAndCompleteJobs = async () => {
+  try {
+    const response = await $fetch('/api/jobs/check-and-complete', {
+      method: 'POST'
+    })
+    return response
+  } catch (error) {
+    console.error('Error checking and completing jobs:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to check jobs',
+      results: {
+        total_jobs: 0,
+        completed: 0,
+        failed: 0,
+        details: []
+      }
+    }
+  }
+}
+
+export const useGetActiveJobs = async () => {
+  const supabase = useSupabaseClient<Database>()
+  
+  try {
+    const { data: jobs, error } = await supabase
+      .from('jobs')
+      .select('*')
+      .eq('active', true)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return jobs || []
+  } catch (error) {
+    console.error('Error fetching active jobs:', error)
+    return []
+  }
+}

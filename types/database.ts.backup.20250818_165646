@@ -171,7 +171,6 @@ export type Database = {
           active: boolean
           created_at: string
           data: Json | null
-          external_id: string | null
           id: string
           type: Database["public"]["Enums"]["job_type"]
         }
@@ -179,7 +178,6 @@ export type Database = {
           active?: boolean
           created_at?: string
           data?: Json | null
-          external_id?: string | null
           id?: string
           type: Database["public"]["Enums"]["job_type"]
         }
@@ -187,7 +185,6 @@ export type Database = {
           active?: boolean
           created_at?: string
           data?: Json | null
-          external_id?: string | null
           id?: string
           type?: Database["public"]["Enums"]["job_type"]
         }

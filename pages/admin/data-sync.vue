@@ -142,6 +142,156 @@
         </div>
       </div>
 
+      <!-- Job Status Section --><div class="card-dark mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Active Jobs</h2>
+            <p class="text-sm text-white/70">Monitor and complete active batch jobs</p>
+          </div>
+          <div class="flex space-x-3">
+            <button
+              @click="refreshJobs"
+              :disabled="jobsLoading"
+              class="btn-secondary"
+              :class="{ 'opacity-50 cursor-not-allowed': jobsLoading }"
+            >
+              <svg v-if="jobsLoading" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ jobsLoading ? 'Loading...' : 'Refresh' }}
+            </button>
+            <button
+              @click="checkAndCompleteJobs"
+              :disabled="jobsChecking"
+              class="btn-primary"
+              :class="{ 'opacity-50 cursor-not-allowed': jobsChecking }"
+            >
+              <svg v-if="jobsChecking" class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              {{ jobsChecking ? 'Checking...' : 'Check & Complete Jobs' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Jobs List -->
+        <div v-if="activeJobs.length > 0" class="space-y-3">
+          <div
+            v-for="job in activeJobs"
+            :key="job.id"
+            class="p-4 rounded-lg bg-white/5 border border-white/10"
+          >
+            <div class="flex items-center justify-between">
+              <div class="flex-1">
+                <div class="flex items-center space-x-3">
+                  <div class="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+                  <div>
+                    <div class="text-white font-medium">{{ job.type.replace('_', ' ').toUpperCase() }}</div>
+                    <div class="text-white/60 text-sm">
+                      Created: {{ formatTime(new Date(job.created_at)) }}
+                      <span v-if="job.external_id" class="ml-2">• Batch ID: {{ job.external_id.slice(-8) }}</span>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="job.data" class="mt-2 text-sm text-white/70">
+                  <span v-if="job.data.total_assessments">{{ job.data.total_assessments }} assessments</span>
+                  <span v-if="job.data.status" class="ml-2">• Status: {{ job.data.status }}</span>
+                  <span v-if="job.data.last_checked" class="ml-2">• Last checked: {{ formatTime(new Date(job.data.last_checked)) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="text-center py-8 text-white/60">
+          No active jobs
+        </div>
+
+        <!-- Job Check Results -->
+        <div v-if="jobCheckResult" class="mt-6 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': jobCheckResult.success,
+               'border-red-500/50 bg-red-500/10': !jobCheckResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">{{ jobCheckResult.message }}</div>
+              <div v-if="jobCheckResult.results" class="grid grid-cols-3 gap-4">
+                <div class="text-center">
+                  <div class="text-white font-medium">{{ jobCheckResult.results.total_jobs }}</div>
+                  <div class="text-white/60">Total</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-green-400 font-medium">{{ jobCheckResult.results.completed }}</div>
+                  <div class="text-white/60">Completed</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-red-400 font-medium">{{ jobCheckResult.results.failed }}</div>
+                  <div class="text-white/60">Failed</div>
+                </div>
+              </div>
+            </div>
+            <button @click="jobCheckResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Assessments Section -->
+      <div class="card-dark mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-white">AI Security Assessments</h2>
+            <p class="text-sm text-white/70">Generate AI-powered investment analysis for all portfolio securities</p>
+          </div>
+          <button
+            @click="generateAssessments"
+            :disabled="assessmentsFetching"
+            class="btn-primary"
+            :class="{ 'opacity-50 cursor-not-allowed': assessmentsFetching }"
+          >
+            <div v-if="assessmentsFetching" class="flex items-center space-x-2">
+              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Generating...</span>
+            </div>
+            <span v-else>Generate AI Assessments</span>
+          </button>
+        </div>
+
+        <!-- Assessment Results -->
+        <div v-if="assessmentResult" class="mt-6 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': assessmentResult.success,
+               'border-red-500/50 bg-red-500/10': !assessmentResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">{{ assessmentResult.message }}</div>
+              <div class="grid grid-cols-3 gap-4">
+                <div class="text-center">
+                  <div class="text-white font-medium">{{ assessmentResult.results.total }}</div>
+                  <div class="text-white/60">Total Securities</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-green-400 font-medium">{{ assessmentResult.results.processed }}</div>
+                  <div class="text-white/60">Assessed</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-red-400 font-medium">{{ assessmentResult.results.errors }}</div>
+                  <div class="text-white/60">Errors</div>
+                </div>
+              </div>
+            </div>
+            <button @click="assessmentResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Recent Activity Log -->
       <div class="card-dark">
         <h2 class="text-xl font-semibold text-white mb-4">Recent Activity</h2>
@@ -189,8 +339,14 @@ definePageMeta({
 // Reactive data
 const newsFetching = ref(false)
 const pricesFetching = ref(false)
+const assessmentsFetching = ref(false)
+const jobsLoading = ref(false)
+const jobsChecking = ref(false)
 const newsResult = ref<any>(null)
 const pricesResult = ref<any>(null)
+const assessmentResult = ref<any>(null)
+const jobCheckResult = ref<any>(null)
+const activeJobs = ref<any[]>([])
 const activityLog = ref<Array<{
   timestamp: Date
   action: string
@@ -258,6 +414,35 @@ const fetchSecurityPrices = async () => {
   }
 }
 
+const generateAssessments = async () => {
+  assessmentsFetching.value = true
+  assessmentResult.value = null
+  
+  try {
+    addActivity('Starting AI assessments', 'Generating AI-powered analysis for portfolio securities', 'info')
+    
+    const result = await useGenerateAIAssessments()
+    assessmentResult.value = result
+    
+    addActivity(
+      'AI assessments completed', 
+      `Generated ${result.results?.processed || 0} assessments, ${result.results?.errors || 0} errors`,
+      result.success ? 'success' : 'error'
+    )
+  } catch (error) {
+    console.error('Error generating AI assessments:', error)
+    assessmentResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      results: { total: 0, processed: 0, errors: 1 }
+    }
+    
+    addActivity('AI assessments failed', assessmentResult.value.message, 'error')
+  } finally {
+    assessmentsFetching.value = false
+  }
+}
+
 const addActivity = (action: string, details: string, type: 'success' | 'error' | 'info') => {
   activityLog.value.unshift({
     timestamp: new Date(),
@@ -272,9 +457,62 @@ const addActivity = (action: string, details: string, type: 'success' | 'error' 
   }
 }
 
+const refreshJobs = async () => {
+  jobsLoading.value = true
+  
+  try {
+    const jobs = await useGetActiveJobs()
+    activeJobs.value = jobs
+    
+    addActivity('Jobs refreshed', `Found ${jobs.length} active jobs`, 'info')
+  } catch (error) {
+    console.error('Error refreshing jobs:', error)
+    addActivity('Job refresh failed', error instanceof Error ? error.message : 'Unknown error', 'error')
+  } finally {
+    jobsLoading.value = false
+  }
+}
+
+const checkAndCompleteJobs = async () => {
+  jobsChecking.value = true
+  jobCheckResult.value = null
+  
+  try {
+    addActivity('Starting job check', 'Checking active batch jobs for completion', 'info')
+    
+    const result = await useCheckAndCompleteJobs()
+    jobCheckResult.value = result
+    
+    // Refresh the jobs list after checking
+    await refreshJobs()
+    
+    addActivity(
+      'Job check completed', 
+      `${result.results?.completed || 0} jobs completed, ${result.results?.failed || 0} failed`,
+      result.success ? 'success' : 'error'
+    )
+  } catch (error) {
+    console.error('Error checking jobs:', error)
+    jobCheckResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred',
+      results: { total_jobs: 0, completed: 0, failed: 0 }
+    }
+    
+    addActivity('Job check failed', jobCheckResult.value.message, 'error')
+  } finally {
+    jobsChecking.value = false
+  }
+}
+
 const formatTime = (timestamp: Date) => {
   return timestamp.toLocaleTimeString()
 }
+
+// Load active jobs on page mount
+onMounted(async () => {
+  await refreshJobs()
+})
 
 useHead({
   title: 'Data Sync Admin - PennyPilot'

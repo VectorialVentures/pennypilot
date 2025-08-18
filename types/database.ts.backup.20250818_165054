@@ -166,33 +166,6 @@ export type Database = {
           },
         ]
       }
-      jobs: {
-        Row: {
-          active: boolean
-          created_at: string
-          data: Json | null
-          external_id: string | null
-          id: string
-          type: Database["public"]["Enums"]["job_type"]
-        }
-        Insert: {
-          active?: boolean
-          created_at?: string
-          data?: Json | null
-          external_id?: string | null
-          id?: string
-          type: Database["public"]["Enums"]["job_type"]
-        }
-        Update: {
-          active?: boolean
-          created_at?: string
-          data?: Json | null
-          external_id?: string | null
-          id?: string
-          type?: Database["public"]["Enums"]["job_type"]
-        }
-        Relationships: []
-      }
       portfolio_analysis: {
         Row: {
           assessment: string
@@ -884,7 +857,6 @@ export type Database = {
         | "suspended"
         | "trialing"
         | "cancelled"
-      job_type: "security_analysis" | "portfolio_analysis"
       portfolio_action: "buy" | "sell" | "hold"
       recommendation: "sell" | "hold" | "buy"
       risk_level: "conservative" | "moderate" | "aggressive"
@@ -1023,7 +995,6 @@ export const Constants = {
         "trialing",
         "cancelled",
       ],
-      job_type: ["security_analysis", "portfolio_analysis"],
       portfolio_action: ["buy", "sell", "hold"],
       recommendation: ["sell", "hold", "buy"],
       risk_level: ["conservative", "moderate", "aggressive"],

@@ -62,25 +62,26 @@ export default defineEventHandler(async (event) => {
       try {
         console.log(`Fetching news for ${security.symbol}...`)
 
-        // Check if we already have recent news (last 24 hours)
-        const yesterday = new Date()
-        yesterday.setDate(yesterday.getDate() - 1)
+        // Check if we already fetched news recently using the last_news_fetch timestamp
+        const { data: securityWithTimestamp } = await supabase
+          .from('securities')
+          .select('last_news_fetch')
+          .eq('id', security.id)
+          .single()
 
-        const { data: existingNews } = await supabase
-          .from('security_news')
-          .select('id')
-          .eq('security_id', security.id)
-          .gte('created_at', yesterday.toISOString())
-          .limit(1)
-
-        if (existingNews && existingNews.length > 0) {
-          console.log(`Recent news already exists for ${security.symbol}, skipping...`)
-          results.push({
-            symbol: security.symbol,
-            status: 'skipped',
-            reason: 'Recent news already exists'
-          })
-          continue
+        if (securityWithTimestamp?.last_news_fetch) {
+          const lastFetch = new Date(securityWithTimestamp.last_news_fetch)
+          const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000)
+          
+          if (lastFetch > twentyFourHoursAgo) {
+            console.log(`News for ${security.symbol} was fetched recently (${lastFetch.toISOString()}), skipping...`)
+            results.push({
+              symbol: security.symbol,
+              status: 'skipped',
+              reason: `Recent fetch at ${lastFetch.toISOString()}`
+            })
+            continue
+          }
         }
 
         // Fetch from Marketaux
@@ -121,6 +122,17 @@ export default defineEventHandler(async (event) => {
         }
 
         console.log(`Successfully inserted ${insertedNews?.length || 0} news articles for ${security.symbol}`)
+        
+        // Update the last_news_fetch timestamp for this security
+        const { error: updateError } = await supabase
+          .from('securities')
+          .update({ last_news_fetch: new Date().toISOString() })
+          .eq('id', security.id)
+          
+        if (updateError) {
+          console.error(`Error updating last_news_fetch for ${security.symbol}:`, updateError)
+        }
+        
         results.push({
           symbol: security.symbol,
           status: 'success',
@@ -233,7 +245,8 @@ async function fetchSecurityNews(symbol: string, apiKey: string) {
 function mapSentiment(sentimentScore?: number): Database['public']['Enums']['sentiment'] | null {
   if (typeof sentimentScore !== 'number') return null
 
-  if (sentimentScore >= 0.1) return 'positive'
-  if (sentimentScore <= -0.1) return 'negative'
+  // Use more conservative thresholds for financial news sentiment
+  if (sentimentScore >= 0.2) return 'positive'
+  if (sentimentScore <= -0.2) return 'negative'
   return 'neutral'
 }
