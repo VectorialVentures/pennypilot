@@ -88,7 +88,7 @@ const fetchSecurityPrices = async (period: string): Promise<ChartDataPoint[]> =>
 
     const { data, error } = await supabase
       .from('security_prices')
-      .select('date, price')
+      .select('date, close')
       .eq('security_id', props.securityId)
       .gte('date', startDate.toISOString().split('T')[0])
       .order('date', { ascending: true })
@@ -96,10 +96,10 @@ const fetchSecurityPrices = async (period: string): Promise<ChartDataPoint[]> =>
     if (error) throw error
 
     const chartData: ChartDataPoint[] = (data || [])
-      .filter(entry => entry.price !== null)
+      .filter(entry => entry.close !== null)
       .map(entry => ({
         date: entry.date,
-        price: entry.price || 0
+        price: entry.close || 0
       }))
 
     return chartData

@@ -345,7 +345,7 @@ const getCurrentPrice = () => {
   if (!security.value?.security_prices || security.value.security_prices.length === 0) {
     return '0.00'
   }
-  return security.value.security_prices[0].price?.toFixed(2) || '0.00'
+  return security.value.security_prices[0].close?.toFixed(2) || '0.00'
 }
 
 const getPriceChange = () => {
@@ -353,8 +353,8 @@ const getPriceChange = () => {
     return '+0.00%'
   }
   
-  const current = security.value.security_prices[0].price || 0
-  const previous = security.value.security_prices[1].price || 0
+  const current = security.value.security_prices[0].close || 0
+  const previous = security.value.security_prices[1].close || 0
   
   if (previous === 0) return '+0.00%'
   
@@ -368,8 +368,8 @@ const getPriceChangeClass = () => {
     return 'bg-secondary-100 text-secondary-800'
   }
   
-  const current = security.value.security_prices[0].price || 0
-  const previous = security.value.security_prices[1].price || 0
+  const current = security.value.security_prices[0].close || 0
+  const previous = security.value.security_prices[1].close || 0
   const change = current - previous
   
   if (change > 0) return 'bg-accent-100 text-accent-800'
@@ -397,7 +397,7 @@ const getDayHigh = () => {
   
   if (recentPrices.length === 0) return getCurrentPrice()
   
-  const high = Math.max(...recentPrices.map(p => p.price || 0))
+  const high = Math.max(...recentPrices.map(p => p.close || 0))
   return high.toFixed(2)
 }
 
@@ -412,7 +412,7 @@ const getDayLow = () => {
   
   if (recentPrices.length === 0) return getCurrentPrice()
   
-  const low = Math.min(...recentPrices.map(p => p.price || 0))
+  const low = Math.min(...recentPrices.map(p => p.close || 0))
   return low.toFixed(2)
 }
 
@@ -426,7 +426,7 @@ const getYearHigh = () => {
   
   if (yearPrices.length === 0) return getCurrentPrice()
   
-  const high = Math.max(...yearPrices.map(p => p.price || 0))
+  const high = Math.max(...yearPrices.map(p => p.close || 0))
   return high.toFixed(2)
 }
 
@@ -440,7 +440,7 @@ const getYearLow = () => {
   
   if (yearPrices.length === 0) return getCurrentPrice()
   
-  const low = Math.min(...yearPrices.map(p => p.price || 0))
+  const low = Math.min(...yearPrices.map(p => p.close || 0))
   return low.toFixed(2)
 }
 

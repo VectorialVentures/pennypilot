@@ -57,15 +57,15 @@ export default defineEventHandler(async (event) => {
     // 2. Fetch news from Marketaux and create security_news records
     const results = []
     const today = new Date().toISOString().split('T')[0]
-    
+
     for (const security of uniqueSecurities) {
       try {
         console.log(`Fetching news for ${security.symbol}...`)
-        
+
         // Check if we already have recent news (last 24 hours)
         const yesterday = new Date()
         yesterday.setDate(yesterday.getDate() - 1)
-        
+
         const { data: existingNews } = await supabase
           .from('security_news')
           .select('id')
@@ -85,7 +85,7 @@ export default defineEventHandler(async (event) => {
 
         // Fetch from Marketaux
         const newsData = await fetchSecurityNews(security.symbol, config.marketauxApiKey)
-        
+
         if (!newsData || newsData.length === 0) {
           results.push({
             symbol: security.symbol,
@@ -180,18 +180,24 @@ async function fetchSecurityNews(symbol: string, apiKey: string) {
     url.searchParams.append('symbols', symbol)
     url.searchParams.append('filter_entities', 'true')
     url.searchParams.append('language', 'en')
-    url.searchParams.append('limit', '10') // Limit to 10 most recent articles
-    url.searchParams.append('published_after', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
+    url.searchParams.append('limit', '3') // Reduce limit to avoid rate limiting
+    url.searchParams.append('published_after', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) // Last 7 days, date only
     url.searchParams.append('api_token', apiKey)
+
+    console.log(`Fetching news for ${symbol} from: ${url.toString().replace(apiKey, '[API_KEY]')}`)
 
     const response = await fetch(url.toString(), {
       headers: {
-        'Content-Type': 'application/json'
+        'Accept': 'application/json',
+        'User-Agent': 'PennyPilot/1.0'
       }
     })
 
+    console.log(`Marketaux API response for ${symbol}: ${response.status} ${response.statusText}`)
+
     if (!response.ok) {
-      console.error(`Marketaux API error for ${symbol}: ${response.status} ${response.statusText}`)
+      const errorText = await response.text()
+      console.error(`Marketaux API error for ${symbol}: ${response.status} ${response.statusText}`, errorText)
       return null
     }
 
@@ -209,6 +215,8 @@ async function fetchSecurityNews(symbol: string, apiKey: string) {
       return []
     }
 
+    console.log(`Found ${data.data.length} news articles for ${symbol}`)
+
     return data.data.map((article: any) => ({
       summary: article.description || article.snippet || article.title,
       url: article.url,
@@ -224,7 +232,7 @@ async function fetchSecurityNews(symbol: string, apiKey: string) {
 
 function mapSentiment(sentimentScore?: number): Database['public']['Enums']['sentiment'] | null {
   if (typeof sentimentScore !== 'number') return null
-  
+
   if (sentimentScore >= 0.1) return 'positive'
   if (sentimentScore <= -0.1) return 'negative'
   return 'neutral'

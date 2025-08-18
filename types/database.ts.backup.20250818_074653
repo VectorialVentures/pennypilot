@@ -574,37 +574,22 @@ export type Database = {
       }
       security_prices: {
         Row: {
-          close: number | null
           created_at: string
           date: string
-          high: number | null
-          low: number | null
-          open: number | null
+          price: number | null
           security_id: string
-          source: string | null
-          volume: number | null
         }
         Insert: {
-          close?: number | null
           created_at?: string
           date: string
-          high?: number | null
-          low?: number | null
-          open?: number | null
+          price?: number | null
           security_id: string
-          source?: string | null
-          volume?: number | null
         }
         Update: {
-          close?: number | null
           created_at?: string
           date?: string
-          high?: number | null
-          low?: number | null
-          open?: number | null
+          price?: number | null
           security_id?: string
-          source?: string | null
-          volume?: number | null
         }
         Relationships: [
           {

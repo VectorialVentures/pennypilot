@@ -349,7 +349,7 @@ export const useSecurityDetails = async (securityId: string) => {
     .select(`
       *,
       security_prices (
-        price,
+        close,
         date
       ),
       security_news (
@@ -402,7 +402,7 @@ export const useSecurityBySymbol = async (symbol: string) => {
     .select(`
       *,
       security_prices (
-        price,
+        close,
         date
       ),
       security_news (
@@ -668,12 +668,25 @@ export const useUpdatePortfolioSecurity = async (portfolioSecurityId: string, up
 
 export const useFetchPortfolioNews = async () => {
   try {
-    const { data } = await $fetch('/api/securities/fetch-portfolio-news', {
+    const response = await $fetch('/api/securities/fetch-portfolio-news', {
       method: 'POST'
     })
-    return data
+    return response
   } catch (error) {
     console.error('Error fetching portfolio news:', error)
-    throw error
+    // Return a safe fallback response structure
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to fetch portfolio news',
+      results: {
+        total: 0,
+        processed: 0,
+        articles_added: 0,
+        errors: 1,
+        skipped: 0,
+        no_news: 0
+      },
+      details: []
+    }
   }
 }

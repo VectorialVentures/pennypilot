@@ -765,7 +765,7 @@ const loadSecurityPrices = async () => {
     // Get latest prices for all securities in a single query
     const { data: allPrices, error } = await supabase
       .from('security_prices')
-      .select('price, date, security_id')
+      .select('close, date, security_id')
       .in('security_id', securityIds)
       .order('date', { ascending: false })
     
@@ -788,7 +788,7 @@ const loadSecurityPrices = async () => {
         portfolio.portfolio_securities.forEach(ps => {
           if (ps.security_id) {
             const latestPrice = latestPricesBySecurityId[ps.security_id]
-            ps.current_price = latestPrice?.price || null
+            ps.current_price = latestPrice?.close || null
             ps.price_date = latestPrice?.date || null
           }
         })

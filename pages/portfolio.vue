@@ -599,7 +599,7 @@ const loadAssetPrices = async () => {
       if (asset.security_id) {
         const { data: priceData, error } = await supabase
           .from('security_prices')
-          .select('price')
+          .select('close')
           .eq('security_id', asset.security_id)
           .order('date', { ascending: false })
           .limit(1)
@@ -607,7 +607,7 @@ const loadAssetPrices = async () => {
         // Handle the case where no price data exists
         let currentPrice = 0
         if (!error && priceData && priceData.length > 0) {
-          currentPrice = priceData[0].price || 0
+          currentPrice = priceData[0].close || 0
         }
 
         const totalValue = asset.quantity * currentPrice
