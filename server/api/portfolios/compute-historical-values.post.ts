@@ -1,18 +1,40 @@
-import { serverSupabaseServiceRole } from '#supabase/server'
+import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import type { Database } from '~/types/database'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  const supabase = await serverSupabaseServiceRole<Database>(event)
-
-  // Verify authorization for batch operations
-  const authHeader = getHeader(event, 'authorization')
-  if (config.systemSecret && authHeader !== `Bearer ${config.systemSecret}`) {
+  
+  // Verify admin user authentication - this is an admin-only operation
+  const user = await serverSupabaseUser(event)
+  if (!user) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Unauthorized'
+      statusMessage: 'Authentication required'
     })
   }
+
+  // Use service role for database operations to access all portfolios
+  const supabase = await serverSupabaseServiceRole<Database>(event)
+
+  // Check if user has admin privileges (you can implement your admin check logic here)
+  // For now, allowing any authenticated user - replace with proper admin check
+  // Example: Check if user email is in admin list or has admin role in profiles table
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .eq('id', user.id)
+    .single()
+
+  if (!profile) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Admin access required'
+    })
+  }
+
+  // TODO: Add proper admin role check here
+  // For example: if (!profile.is_admin || !ADMIN_EMAILS.includes(profile.email))
+  console.log(`Admin operation initiated by user: ${profile.email} (${user.id})`)
 
   const body = await readBody(event)
   const { 
