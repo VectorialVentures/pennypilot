@@ -228,21 +228,24 @@ export type Database = {
       portfolio_history: {
         Row: {
           created_at: string
-          date: string
-          portfolio_id: string
-          value: number
+          date: string | null
+          id: string
+          portfolio_id: string | null
+          value: number | null
         }
         Insert: {
           created_at?: string
-          date: string
-          portfolio_id?: string
-          value: number
+          date?: string | null
+          id?: string
+          portfolio_id?: string | null
+          value?: number | null
         }
         Update: {
           created_at?: string
-          date?: string
-          portfolio_id?: string
-          value?: number
+          date?: string | null
+          id?: string
+          portfolio_id?: string | null
+          value?: number | null
         }
         Relationships: [
           {

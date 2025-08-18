@@ -127,22 +127,44 @@ export default defineEventHandler(async (event) => {
             const value = await computePortfolioValueForDate(supabase, portfolio.id, date)
             
             if (value !== null) {
-              // Upsert the historical value
-              const { error: historyError } = await supabase
+              // Check if record already exists for this portfolio and date
+              const { data: existingRecord } = await supabase
                 .from('portfolio_history')
-                .upsert({
-                  portfolio_id: portfolio.id,
-                  date: date,
-                  value: value
-                }, {
-                  onConflict: 'portfolio_id,date'
-                })
+                .select('date')
+                .eq('portfolio_id', portfolio.id)
+                .eq('date', date)
+                .single()
 
-              if (historyError) {
-                console.error(`Error saving history for ${portfolio.name} on ${date}:`, historyError)
+              if (existingRecord) {
+                // Update existing record
+                const { error: updateError } = await supabase
+                  .from('portfolio_history')
+                  .update({ value: value })
+                  .eq('portfolio_id', portfolio.id)
+                  .eq('date', date)
+
+                if (updateError) {
+                  console.error(`Error updating history for ${portfolio.name} on ${date}:`, updateError)
+                } else {
+                  portfolioValuesComputed++
+                  totalValuesComputed++
+                }
               } else {
-                portfolioValuesComputed++
-                totalValuesComputed++
+                // Insert new record
+                const { error: insertError } = await supabase
+                  .from('portfolio_history')
+                  .insert({
+                    portfolio_id: portfolio.id,
+                    date: date,
+                    value: value
+                  })
+
+                if (insertError) {
+                  console.error(`Error inserting history for ${portfolio.name} on ${date}:`, insertError)
+                } else {
+                  portfolioValuesComputed++
+                  totalValuesComputed++
+                }
               }
             }
           } catch (error) {
