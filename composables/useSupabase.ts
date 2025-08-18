@@ -691,10 +691,13 @@ export const useFetchPortfolioNews = async () => {
   }
 }
 
-export const useGenerateAIAssessments = async () => {
+export const useGenerateAIAssessments = async (options: { useBatching?: boolean } = {}) => {
   try {
     const response = await $fetch('/api/securities/generate-assessments', {
-      method: 'POST'
+      method: 'POST',
+      body: {
+        useBatching: options.useBatching !== false // Default to true
+      }
     })
     return response
   } catch (error) {
@@ -749,5 +752,21 @@ export const useGetActiveJobs = async () => {
   } catch (error) {
     console.error('Error fetching active jobs:', error)
     return []
+  }
+}
+
+export const useCancelJob = async (jobId: string) => {
+  try {
+    const response = await $fetch('/api/jobs/cancel', {
+      method: 'POST',
+      body: { jobId }
+    })
+    return response
+  } catch (error) {
+    console.error('Error cancelling job:', error)
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to cancel job'
+    }
   }
 }

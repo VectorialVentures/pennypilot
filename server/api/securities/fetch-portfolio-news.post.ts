@@ -96,15 +96,84 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
-        // 3. Create security_news records
-        const newsRecords = newsData.map(article => ({
-          security_id: security.id,
-          summary: article.summary,
-          url: article.url,
-          published_at: article.published_at,
-          sentiment: article.sentiment || null,
-          created_at: new Date().toISOString()
-        }))
+        // 3. Create security_news records for all relevant entities in each article
+        const newsRecords = []
+        const processedExternalIds = new Set()
+        
+        for (const article of newsData) {
+          // Skip duplicate articles by external_id
+          if (processedExternalIds.has(article.uuid)) continue
+          processedExternalIds.add(article.uuid)
+
+          // Process all entities in this article
+          if (article.entities && Array.isArray(article.entities)) {
+            for (const entity of article.entities) {
+              if (!entity.symbol || entity.type !== 'equity') continue
+
+              // Check if this entity symbol exists in our securities database
+              const { data: matchingSecurity } = await supabase
+                .from('securities')
+                .select('id, symbol')
+                .eq('symbol', entity.symbol)
+                .single()
+
+              if (!matchingSecurity) continue
+
+              // Check if we already have this article for this security using external_id
+              const { data: existingNews } = await supabase
+                .from('security_news')
+                .select('id')
+                .eq('security_id', matchingSecurity.id)
+                .eq('external_id', article.uuid)
+                .single()
+
+              if (existingNews) {
+                console.log(`Article already exists for ${matchingSecurity.symbol}: ${article.uuid}`)
+                continue
+              }
+
+              newsRecords.push({
+                security_id: matchingSecurity.id,
+                external_id: article.uuid,
+                summary: article.summary,
+                url: article.url,
+                published_at: article.published_at,
+                sentiment: mapSentiment(entity.sentiment_score),
+                created_at: new Date().toISOString()
+              })
+            }
+          } else {
+            // Fallback: if no entities, create for the primary security being fetched
+            // Check if we already have this article for the primary security using external_id
+            const { data: existingNews } = await supabase
+              .from('security_news')
+              .select('id')
+              .eq('security_id', security.id)
+              .eq('external_id', article.uuid)
+              .single()
+
+            if (!existingNews) {
+              newsRecords.push({
+                security_id: security.id,
+                external_id: article.uuid,
+                summary: article.summary,
+                url: article.url,
+                published_at: article.published_at,
+                sentiment: article.sentiment,
+                created_at: new Date().toISOString()
+              })
+            }
+          }
+        }
+
+        if (newsRecords.length === 0) {
+          results.push({
+            symbol: security.symbol,
+            status: 'no_news',
+            reason: 'No relevant news articles found'
+          })
+          continue
+        }
 
         const { data: insertedNews, error: insertError } = await supabase
           .from('security_news')
@@ -121,7 +190,8 @@ export default defineEventHandler(async (event) => {
           continue
         }
 
-        console.log(`Successfully inserted ${insertedNews?.length || 0} news articles for ${security.symbol}`)
+        const insertedCount = insertedNews?.length || 0
+        console.log(`Successfully inserted ${insertedCount} news records (processing entities from ${newsData.length} articles for ${security.symbol})`)
         
         // Update the last_news_fetch timestamp for this security
         const { error: updateError } = await supabase
@@ -136,7 +206,7 @@ export default defineEventHandler(async (event) => {
         results.push({
           symbol: security.symbol,
           status: 'success',
-          articles_count: insertedNews?.length || 0
+          articles_count: insertedCount
         })
 
         // Add delay to respect API rate limits (Marketaux: 100 requests/day on free tier)
@@ -230,10 +300,12 @@ async function fetchSecurityNews(symbol: string, apiKey: string) {
     console.log(`Found ${data.data.length} news articles for ${symbol}`)
 
     return data.data.map((article: any) => ({
+      uuid: article.uuid,
       summary: article.description || article.snippet || article.title,
       url: article.url,
       published_at: article.published_at,
-      sentiment: mapSentiment(article.entities?.[symbol]?.sentiment_score)
+      entities: article.entities || [], // Include all entities for processing
+      sentiment: mapSentiment(article.entities?.[0]?.sentiment_score) // Fallback sentiment
     })).filter((article: any) => article.summary && article.url)
 
   } catch (error) {

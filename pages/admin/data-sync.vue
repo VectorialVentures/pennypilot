@@ -201,12 +201,49 @@
                   <span v-if="job.data.last_checked" class="ml-2">• Last checked: {{ formatTime(new Date(job.data.last_checked)) }}</span>
                 </div>
               </div>
+              <div class="ml-4">
+                <button
+                  @click="cancelJob(job.id)"
+                  :disabled="jobsCancelling.has(job.id)"
+                  class="btn-secondary text-sm px-3 py-1 text-red-400 border-red-400/50 hover:bg-red-500/10"
+                  :class="{ 'opacity-50 cursor-not-allowed': jobsCancelling.has(job.id) }"
+                >
+                  <svg v-if="jobsCancelling.has(job.id)" class="animate-spin -ml-1 mr-1 h-3 w-3 text-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  {{ jobsCancelling.has(job.id) ? 'Cancelling...' : 'Cancel' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         <div v-else class="text-center py-8 text-white/60">
           No active jobs
+        </div>
+
+        <!-- Job Cancellation Results -->
+        <div v-if="jobCancelResult" class="mt-4 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': jobCancelResult.success,
+               'border-red-500/50 bg-red-500/10': !jobCancelResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-1">{{ jobCancelResult.message }}</div>
+              <div v-if="jobCancelResult.job_type" class="text-sm text-white/70">
+                Job Type: {{ jobCancelResult.job_type.replace('_', ' ').toUpperCase() }}
+              </div>
+              <div v-if="jobCancelResult.external_cancellation && !jobCancelResult.external_cancellation.success" 
+                   class="mt-2 text-sm text-orange-400">
+                External cancellation: {{ jobCancelResult.external_cancellation.error }}
+              </div>
+            </div>
+            <button @click="jobCancelResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <!-- Job Check Results -->
@@ -247,18 +284,34 @@
             <h2 class="text-xl font-semibold text-white">AI Security Assessments</h2>
             <p class="text-sm text-white/70">Generate AI-powered investment analysis for all portfolio securities</p>
           </div>
-          <button
-            @click="generateAssessments"
-            :disabled="assessmentsFetching"
-            class="btn-primary"
-            :class="{ 'opacity-50 cursor-not-allowed': assessmentsFetching }"
-          >
-            <div v-if="assessmentsFetching" class="flex items-center space-x-2">
-              <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Generating...</span>
+          <div class="flex items-center space-x-4">
+            <!-- Processing Mode Toggle -->
+            <div class="flex items-center space-x-2">
+              <label class="text-sm text-white/70">Mode:</label>
+              <select 
+                v-model="assessmentMode"
+                :disabled="assessmentsFetching"
+                class="bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
+              >
+                <option value="batch">Batch (24h, 50% cheaper)</option>
+                <option value="immediate">Immediate (higher cost)</option>
+              </select>
             </div>
-            <span v-else>Generate AI Assessments</span>
-          </button>
+            <button
+              @click="generateAssessments"
+              :disabled="assessmentsFetching"
+              class="btn-primary"
+              :class="{ 'opacity-50 cursor-not-allowed': assessmentsFetching }"
+            >
+              <div v-if="assessmentsFetching" class="flex items-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>{{ assessmentMode === 'immediate' ? 'Processing...' : 'Submitting...' }}</span>
+              </div>
+              <span v-else>
+                {{ assessmentMode === 'immediate' ? 'Generate Immediately' : 'Submit Batch Job' }}
+              </span>
+            </button>
+          </div>
         </div>
 
         <!-- Assessment Results -->
@@ -270,19 +323,29 @@
           <div class="flex items-center justify-between">
             <div class="flex-1">
               <div class="text-white font-medium mb-2">{{ assessmentResult.message }}</div>
-              <div class="grid grid-cols-3 gap-4">
+              <div v-if="assessmentResult.results" class="grid grid-cols-3 gap-4">
                 <div class="text-center">
                   <div class="text-white font-medium">{{ assessmentResult.results.total }}</div>
                   <div class="text-white/60">Total Securities</div>
                 </div>
                 <div class="text-center">
-                  <div class="text-green-400 font-medium">{{ assessmentResult.results.processed }}</div>
-                  <div class="text-white/60">Assessed</div>
+                  <div class="text-green-400 font-medium">
+                    {{ assessmentResult.results.processed || assessmentResult.results.submitted || 0 }}
+                  </div>
+                  <div class="text-white/60">
+                    {{ assessmentResult.results.mode === 'immediate' ? 'Processed' : 'Submitted' }}
+                  </div>
                 </div>
                 <div class="text-center">
-                  <div class="text-red-400 font-medium">{{ assessmentResult.results.errors }}</div>
+                  <div class="text-red-400 font-medium">{{ assessmentResult.results.errors || 0 }}</div>
                   <div class="text-white/60">Errors</div>
                 </div>
+              </div>
+              <div v-if="assessmentResult.results.mode === 'immediate' && assessmentResult.details" 
+                   class="mt-3 text-xs text-white/60">
+                Show detailed results: {{ assessmentResult.details.filter(d => d.status === 'success').length }} successful, 
+                {{ assessmentResult.details.filter(d => d.status === 'error').length }} errors, 
+                {{ assessmentResult.details.filter(d => d.status === 'skipped').length }} skipped
               </div>
             </div>
             <button @click="assessmentResult = null" class="text-white/60 hover:text-white">
@@ -342,10 +405,13 @@ const pricesFetching = ref(false)
 const assessmentsFetching = ref(false)
 const jobsLoading = ref(false)
 const jobsChecking = ref(false)
+const jobsCancelling = ref(new Set<string>())
+const assessmentMode = ref<'batch' | 'immediate'>('batch')
 const newsResult = ref<any>(null)
 const pricesResult = ref<any>(null)
 const assessmentResult = ref<any>(null)
 const jobCheckResult = ref<any>(null)
+const jobCancelResult = ref<any>(null)
 const activeJobs = ref<any[]>([])
 const activityLog = ref<Array<{
   timestamp: Date
@@ -419,16 +485,31 @@ const generateAssessments = async () => {
   assessmentResult.value = null
   
   try {
-    addActivity('Starting AI assessments', 'Generating AI-powered analysis for portfolio securities', 'info')
-    
-    const result = await useGenerateAIAssessments()
-    assessmentResult.value = result
+    const useBatching = assessmentMode.value === 'batch'
+    const modeText = useBatching ? 'batch processing' : 'immediate processing'
     
     addActivity(
-      'AI assessments completed', 
-      `Generated ${result.results?.processed || 0} assessments, ${result.results?.errors || 0} errors`,
-      result.success ? 'success' : 'error'
+      'Starting AI assessments', 
+      `Generating AI-powered analysis for portfolio securities using ${modeText}`, 
+      'info'
     )
+    
+    const result = await useGenerateAIAssessments({ useBatching })
+    assessmentResult.value = result
+    
+    if (useBatching) {
+      addActivity(
+        'AI batch job submitted', 
+        `Submitted ${result.results?.submitted || 0} assessments for batch processing`,
+        result.success ? 'success' : 'error'
+      )
+    } else {
+      addActivity(
+        'AI assessments completed', 
+        `Processed ${result.results?.processed || 0} assessments immediately, ${result.results?.errors || 0} errors`,
+        result.success ? 'success' : 'error'
+      )
+    }
   } catch (error) {
     console.error('Error generating AI assessments:', error)
     assessmentResult.value = {
@@ -502,6 +583,41 @@ const checkAndCompleteJobs = async () => {
     addActivity('Job check failed', jobCheckResult.value.message, 'error')
   } finally {
     jobsChecking.value = false
+  }
+}
+
+const cancelJob = async (jobId: string) => {
+  jobsCancelling.value.add(jobId)
+  jobCancelResult.value = null
+  
+  try {
+    addActivity('Cancelling job', `Attempting to cancel job ${jobId}`, 'info')
+    
+    const result = await useCancelJob(jobId)
+    jobCancelResult.value = result
+    
+    // Refresh the jobs list after cancellation
+    await refreshJobs()
+    
+    if (result.success) {
+      addActivity(
+        'Job cancelled', 
+        `Successfully cancelled ${result.job_type} job`,
+        'success'
+      )
+    } else {
+      addActivity('Job cancellation failed', result.message, 'error')
+    }
+  } catch (error) {
+    console.error('Error cancelling job:', error)
+    jobCancelResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+    
+    addActivity('Job cancellation failed', jobCancelResult.value.message, 'error')
+  } finally {
+    jobsCancelling.value.delete(jobId)
   }
 }
 
