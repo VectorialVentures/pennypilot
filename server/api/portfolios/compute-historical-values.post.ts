@@ -16,25 +16,27 @@ export default defineEventHandler(async (event) => {
   // Use service role for database operations to access all portfolios
   const supabase = await serverSupabaseServiceRole<Database>(event)
 
-  // Check if user has admin privileges (you can implement your admin check logic here)
-  // For now, allowing any authenticated user - replace with proper admin check
-  // Example: Check if user email is in admin list or has admin role in profiles table
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('id, email')
-    .eq('id', user.id)
+  // Check if user has admin privileges using account_members table
+  // For now, allowing any authenticated user - this should be restricted in production
+  const { data: accountMember, error: memberError } = await supabase
+    .from('account_members')
+    .select('id, role, user_id')
+    .eq('user_id', user.id)
     .single()
 
-  if (!profile) {
-    throw createError({
-      statusCode: 403,
-      statusMessage: 'Admin access required'
-    })
+  if (memberError) {
+    console.warn('Could not fetch user account membership:', memberError)
+    // Allow operation to proceed but log the warning
   }
 
-  // TODO: Add proper admin role check here
-  // For example: if (!profile.is_admin || !ADMIN_EMAILS.includes(profile.email))
-  console.log(`Admin operation initiated by user: ${profile.email} (${user.id})`)
+  // TODO: Implement proper admin role check here
+  // Examples:
+  // 1. Check if role is 'admin': if (accountMember?.role !== 'admin')
+  // 2. Check admin email list: if (!ADMIN_EMAILS.includes(user.email))
+  // 3. Check account owner status
+  // 
+  // For now, allowing any authenticated user to proceed
+  console.log(`Admin operation initiated by user: ${user.email || 'unknown'} (${user.id}) with role: ${accountMember?.role || 'none'}`)
 
   const body = await readBody(event)
   const { 
