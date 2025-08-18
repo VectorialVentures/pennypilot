@@ -385,6 +385,89 @@
         </div>
       </div>
 
+      <!-- Portfolio Analysis Section -->
+      <div class="card-dark mb-8">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h2 class="text-xl font-semibold text-white">Portfolio Analysis</h2>
+            <p class="text-sm text-white/70">Generate comprehensive AI-powered portfolio analysis and recommendations</p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <button
+              @click="generatePortfolioAnalysis"
+              :disabled="portfolioAnalysisGenerating"
+              class="btn-primary"
+              :class="{ 'opacity-50 cursor-not-allowed': portfolioAnalysisGenerating }"
+            >
+              <div v-if="portfolioAnalysisGenerating" class="flex items-center space-x-2">
+                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Analyzing...</span>
+              </div>
+              <span v-else>Generate Portfolio Analysis</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Portfolio Analysis Results -->
+        <div v-if="portfolioAnalysisResult" class="mt-6 p-4 rounded-lg border"
+             :class="{
+               'border-green-500/50 bg-green-500/10': portfolioAnalysisResult.success,
+               'border-red-500/50 bg-red-500/10': !portfolioAnalysisResult.success
+             }">
+          <div class="flex items-center justify-between">
+            <div class="flex-1">
+              <div class="text-white font-medium mb-2">{{ portfolioAnalysisResult.message }}</div>
+              <div v-if="portfolioAnalysisResult.results" class="grid grid-cols-4 gap-4">
+                <div class="text-center">
+                  <div class="text-white font-medium">{{ portfolioAnalysisResult.results.total }}</div>
+                  <div class="text-white/60">Total Portfolios</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-green-400 font-medium">{{ portfolioAnalysisResult.results.processed }}</div>
+                  <div class="text-white/60">Analyzed</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-red-400 font-medium">{{ portfolioAnalysisResult.results.errors }}</div>
+                  <div class="text-white/60">Errors</div>
+                </div>
+                <div class="text-center">
+                  <div class="text-blue-400 font-medium">
+                    {{ portfolioAnalysisResult.details ? 
+                        (portfolioAnalysisResult.details.filter(d => d.status === 'success').reduce((avg, d) => avg + (d.rating || 0), 0) / 
+                         Math.max(1, portfolioAnalysisResult.details.filter(d => d.status === 'success').length)).toFixed(1) : 'N/A' }}
+                  </div>
+                  <div class="text-white/60">Avg Rating</div>
+                </div>
+              </div>
+              <!-- Detailed Results -->
+              <div v-if="portfolioAnalysisResult.details && portfolioAnalysisResult.details.length > 0" class="mt-4">
+                <h4 class="text-white font-medium mb-2">Portfolio Details:</h4>
+                <div class="space-y-2">
+                  <div v-for="detail in portfolioAnalysisResult.details" :key="detail.portfolioId" 
+                       class="flex items-center justify-between text-sm">
+                    <span class="text-white/80">{{ detail.portfolioName }}</span>
+                    <div class="flex items-center space-x-3">
+                      <span v-if="detail.status === 'success'" class="text-green-400">
+                        ✓ Rating: {{ detail.rating }}/10 ({{ detail.actionsCount }} actions)
+                      </span>
+                      <span v-else-if="detail.status === 'skipped'" class="text-yellow-400">
+                        ⚠ {{ detail.reason }}
+                      </span>
+                      <span v-else class="text-red-400">
+                        ✗ {{ detail.error }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <button @click="portfolioAnalysisResult = null" class="text-white/60 hover:text-white">
+              <XMarkIcon class="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- AI Assessments Section -->
       <div class="card-dark mb-8">
         <div class="flex items-center justify-between mb-6">
@@ -588,6 +671,7 @@ const jobsCancelling = ref(new Set<string>())
 const currentValuesUpdating = ref(false)
 const historicalValuesComputing = ref(false)
 const showHistoricalModal = ref(false)
+const portfolioAnalysisGenerating = ref(false)
 const assessmentMode = ref<'batch' | 'immediate'>('batch')
 const newsResult = ref<any>(null)
 const pricesResult = ref<any>(null)
@@ -596,6 +680,7 @@ const jobCheckResult = ref<any>(null)
 const jobCancelResult = ref<any>(null)
 const currentValuesResult = ref<any>(null)
 const historicalValuesResult = ref<any>(null)
+const portfolioAnalysisResult = ref<any>(null)
 const activeJobs = ref<any[]>([])
 const activityLog = ref<Array<{
   timestamp: Date
@@ -884,6 +969,37 @@ const computeHistoricalValues = async () => {
     addActivity('Historical computation failed', historicalValuesResult.value.message, 'error')
   } finally {
     historicalValuesComputing.value = false
+  }
+}
+
+const generatePortfolioAnalysis = async () => {
+  portfolioAnalysisGenerating.value = true
+  portfolioAnalysisResult.value = null
+  
+  try {
+    addActivity('Starting portfolio analysis', 'Generating comprehensive AI-powered portfolio analysis for all portfolios', 'info')
+    
+    const result = await $fetch('/api/portfolios/generate-analysis', {
+      method: 'POST'
+    })
+    
+    portfolioAnalysisResult.value = result
+    
+    addActivity(
+      'Portfolio analysis completed', 
+      `Analyzed ${result.results?.processed || 0} portfolios with ${result.results?.errors || 0} errors`,
+      result.success ? 'success' : 'error'
+    )
+  } catch (error) {
+    console.error('Error generating portfolio analysis:', error)
+    portfolioAnalysisResult.value = {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+    
+    addActivity('Portfolio analysis failed', portfolioAnalysisResult.value.message, 'error')
+  } finally {
+    portfolioAnalysisGenerating.value = false
   }
 }
 

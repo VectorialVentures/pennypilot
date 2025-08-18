@@ -372,3 +372,81 @@ export const SECURITY_ASSESSMENT_SCHEMA: JSONSchema = {
     additionalProperties: false
   }
 }
+
+/**
+ * Portfolio analysis JSON schema
+ */
+export const PORTFOLIO_ANALYSIS_SCHEMA: JSONSchema = {
+  name: "portfolio_analysis",
+  schema: {
+    type: "object",
+    properties: {
+      assessment: {
+        type: "string",
+        description: "Comprehensive portfolio analysis including performance, diversification, risk alignment, and strategic observations"
+      },
+      rating: {
+        type: "number",
+        minimum: 1,
+        maximum: 10,
+        description: "Overall portfolio rating from 1 (poor) to 10 (excellent)"
+      },
+      actions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            action: {
+              type: "string",
+              enum: ["buy", "sell", "hold", "rebalance"],
+              description: "Recommended action type"
+            },
+            symbol: {
+              type: "string",
+              description: "Security symbol (required for buy/sell actions)"
+            },
+            amount: {
+              type: "number",
+              description: "Suggested amount or percentage for the action"
+            },
+            reasoning: {
+              type: "string",
+              description: "Explanation for this specific action"
+            },
+            priority: {
+              type: "string",
+              enum: ["high", "medium", "low"],
+              description: "Priority level for this action"
+            }
+          },
+          required: ["action", "reasoning", "priority"],
+          additionalProperties: false
+        },
+        description: "List of recommended portfolio actions"
+      },
+      risk_assessment: {
+        type: "object",
+        properties: {
+          current_risk_level: {
+            type: "string",
+            enum: ["conservative", "moderate", "aggressive"],
+            description: "Current portfolio risk level"
+          },
+          alignment_with_target: {
+            type: "string",
+            enum: ["aligned", "too_conservative", "too_aggressive"],
+            description: "How current portfolio aligns with target risk level"
+          },
+          recommendations: {
+            type: "string",
+            description: "Risk-specific recommendations"
+          }
+        },
+        required: ["current_risk_level", "alignment_with_target", "recommendations"],
+        additionalProperties: false
+      }
+    },
+    required: ["assessment", "rating", "actions", "risk_assessment"],
+    additionalProperties: false
+  }
+}
