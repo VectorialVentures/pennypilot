@@ -57,16 +57,16 @@ export default defineEventHandler(async (event) => {
     // 2. Fetch historical prices from TwelveData to ensure 365 days of data
     const results = []
     const today = new Date().toISOString().split('T')[0]
-    
+
     for (const security of uniqueSecurities) {
       try {
         console.log(`Processing price data for ${security.symbol}...`)
-        
+
         // Check what dates we have for the past 365 days
         const oneYearAgo = new Date()
         oneYearAgo.setDate(oneYearAgo.getDate() - 365)
         const startDate = oneYearAgo.toISOString().split('T')[0]
-        
+
         const { data: existingPrices } = await supabase
           .from('security_prices')
           .select('date')
@@ -77,13 +77,13 @@ export default defineEventHandler(async (event) => {
 
         // Generate all business days for the past 365 days
         const allBusinessDays = generateBusinessDays(startDate, today)
-        
+
         // Find missing dates
         const existingDates = new Set(existingPrices?.map(p => p.date) || [])
         const missingDates = allBusinessDays.filter(date => !existingDates.has(date))
-        
+
         console.log(`${security.symbol}: Found ${existingDates.size} existing prices, ${missingDates.length} missing dates`)
-        
+
         // If no missing dates, skip this security
         if (missingDates.length === 0) {
           console.log(`${security.symbol} has complete price data for past 365 days, skipping...`)
@@ -97,12 +97,12 @@ export default defineEventHandler(async (event) => {
 
         // Fetch historical data for missing dates
         const historicalData = await fetchHistoricalPrices(
-          security.symbol, 
+          security.symbol,
           config.twelveDataApiKey,
           startDate,
           today
         )
-        
+
         if (!historicalData || historicalData.length === 0) {
           results.push({
             symbol: security.symbol,
@@ -113,7 +113,7 @@ export default defineEventHandler(async (event) => {
         }
 
         // Filter historical data to only missing dates
-        const dataToInsert = historicalData.filter(priceData => 
+        const dataToInsert = historicalData.filter(priceData =>
           missingDates.includes(priceData.date)
         )
 
@@ -135,8 +135,7 @@ export default defineEventHandler(async (event) => {
           low: priceData.low,
           close: priceData.close,
           volume: priceData.volume,
-          source: 'twelvedata',
-          updated_at: new Date().toISOString()
+          source: 'twelvedata'
         }))
 
         const { error: insertError } = await supabase
@@ -246,7 +245,7 @@ async function fetchHistoricalPrices(symbol: string, apiKey: string, startDate: 
       low: parseFloat(item.low),
       close: parseFloat(item.close),
       volume: item.volume ? parseInt(item.volume) : 0
-    })).filter((item: any) => 
+    })).filter((item: any) =>
       // Filter out invalid data
       !isNaN(item.open) && !isNaN(item.high) && !isNaN(item.low) && !isNaN(item.close)
     )
@@ -261,19 +260,19 @@ function generateBusinessDays(startDate: string, endDate: string): string[] {
   const businessDays = []
   const start = new Date(startDate)
   const end = new Date(endDate)
-  
+
   const current = new Date(start)
   while (current <= end) {
     const dayOfWeek = current.getDay()
-    
+
     // Skip weekends (0 = Sunday, 6 = Saturday)
     if (dayOfWeek !== 0 && dayOfWeek !== 6) {
       businessDays.push(current.toISOString().split('T')[0])
     }
-    
+
     current.setDate(current.getDate() + 1)
   }
-  
+
   return businessDays
 }
 

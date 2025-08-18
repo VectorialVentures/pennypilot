@@ -149,8 +149,7 @@ export default defineEventHandler(async (event) => {
               low: priceData.low,
               close: priceData.close,
               volume: priceData.volume,
-              source: 'twelvedata',
-              updated_at: new Date().toISOString()
+              source: 'twelvedata'
             }, {
               onConflict: 'security_id,date'
             })
