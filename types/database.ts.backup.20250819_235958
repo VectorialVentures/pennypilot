@@ -200,8 +200,6 @@ export type Database = {
           id: string
           portfolio_id: string
           rating: number
-          risk_assessment: string | null
-          title: string | null
         }
         Insert: {
           assessment: string
@@ -209,8 +207,6 @@ export type Database = {
           id?: string
           portfolio_id: string
           rating: number
-          risk_assessment?: string | null
-          title?: string | null
         }
         Update: {
           assessment?: string
@@ -218,8 +214,6 @@ export type Database = {
           id?: string
           portfolio_id?: string
           rating?: number
-          risk_assessment?: string | null
-          title?: string | null
         }
         Relationships: [
           {
@@ -539,7 +533,6 @@ export type Database = {
           id: string
           recommendation: Database["public"]["Enums"]["recommendation"]
           security_id: string
-          title: string | null
         }
         Insert: {
           assessment: string
@@ -547,7 +540,6 @@ export type Database = {
           id?: string
           recommendation: Database["public"]["Enums"]["recommendation"]
           security_id: string
-          title?: string | null
         }
         Update: {
           assessment?: string
@@ -555,7 +547,6 @@ export type Database = {
           id?: string
           recommendation?: Database["public"]["Enums"]["recommendation"]
           security_id?: string
-          title?: string | null
         }
         Relationships: [
           {

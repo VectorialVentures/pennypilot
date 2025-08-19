@@ -221,6 +221,10 @@
                 </div>
               </div>
               
+              <div v-if="analysis.title" class="mb-3">
+                <h4 class="text-lg font-semibold text-white">{{ analysis.title }}</h4>
+              </div>
+              
               <div class="text-white/90 leading-relaxed">
                 {{ analysis.assessment }}
               </div>

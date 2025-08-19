@@ -249,13 +249,18 @@ export function parseOpenAIResponse<T = unknown>(
 export function validateAssessmentResponse(
   assessment: unknown, 
   identifier?: string
-): { analysis: string; recommendation: string } | null {
+): { title: string; analysis: string; recommendation: string } | null {
   if (!assessment || typeof assessment !== 'object') {
     console.error(`Invalid assessment object${identifier ? ` for ${identifier}` : ''}:`, assessment)
     return null
   }
   
   const assessmentObj = assessment as Record<string, unknown>
+  
+  if (!assessmentObj.title || typeof assessmentObj.title !== 'string') {
+    console.error(`Missing or invalid title${identifier ? ` for ${identifier}` : ''}:`, assessment)
+    return null
+  }
   
   if (!assessmentObj.analysis || typeof assessmentObj.analysis !== 'string') {
     console.error(`Missing or invalid analysis${identifier ? ` for ${identifier}` : ''}:`, assessment)
@@ -277,6 +282,7 @@ export function validateAssessmentResponse(
   }
 
   return {
+    title: assessmentObj.title.trim(),
     analysis: assessmentObj.analysis,
     recommendation: normalizedRecommendation
   }
@@ -358,6 +364,10 @@ export const SECURITY_ASSESSMENT_SCHEMA: JSONSchema = {
   schema: {
     type: "object",
     properties: {
+      title: {
+        type: "string",
+        description: "Short, representative title for the analysis (3-8 words)"
+      },
       analysis: {
         type: "string",
         description: "Comprehensive analysis covering fundamentals, technical analysis, and market sentiment"
@@ -368,7 +378,7 @@ export const SECURITY_ASSESSMENT_SCHEMA: JSONSchema = {
         description: "Investment recommendation"
       }
     },
-    required: ["analysis", "recommendation"],
+    required: ["title", "analysis", "recommendation"],
     additionalProperties: false
   }
 }
@@ -381,6 +391,10 @@ export const PORTFOLIO_ANALYSIS_SCHEMA: JSONSchema = {
   schema: {
     type: "object",
     properties: {
+      title: {
+        type: "string",
+        description: "Short, descriptive title for the portfolio analysis (3-8 words)"
+      },
       assessment: {
         type: "string",
         description: "Comprehensive portfolio analysis including performance, diversification, risk alignment, and strategic observations"
@@ -446,7 +460,7 @@ export const PORTFOLIO_ANALYSIS_SCHEMA: JSONSchema = {
         additionalProperties: false
       }
     },
-    required: ["assessment", "rating", "actions", "risk_assessment"],
+    required: ["title", "assessment", "rating", "actions", "risk_assessment"],
     additionalProperties: false
   }
 }

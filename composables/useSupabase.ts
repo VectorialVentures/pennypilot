@@ -362,6 +362,7 @@ export const useSecurityDetails = async (securityId: string) => {
       ),
       security_analysis (
         id,
+        title,
         assessment,
         recommendation,
         created_at
@@ -415,6 +416,7 @@ export const useSecurityBySymbol = async (symbol: string) => {
       ),
       security_analysis (
         id,
+        title,
         assessment,
         recommendation,
         created_at
@@ -502,6 +504,7 @@ export const usePortfoliosWithAnalysis = async () => {
       ),
       portfolio_analysis (
         id,
+        title,
         assessment,
         rating,
         created_at

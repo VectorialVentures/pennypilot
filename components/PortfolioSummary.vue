@@ -3,7 +3,7 @@
     <!-- Total Value -->
     <div class="card text-center">
       <div class="text-sm font-medium text-secondary-600 mb-2">Total Portfolio Value</div>
-      <div class="text-3xl font-bold gradient-text">{{ formatCurrency(totalValue) }}</div>
+      <div class="text-3xl font-bold text-white">{{ formatCurrency(totalValue) }}</div>
       <div class="text-sm text-secondary-500 mt-1">
         Updated {{ lastUpdated }}
       </div>
@@ -12,12 +12,7 @@
     <!-- Total Gain/Loss -->
     <div class="card text-center">
       <div class="text-sm font-medium text-secondary-600 mb-2">Total Gain/Loss</div>
-      <div 
-        :class="[
-          'text-3xl font-bold',
-          totalGainLoss >= 0 ? 'text-accent-600' : 'text-danger-600'
-        ]"
-      >
+      <div class="text-3xl font-bold text-white">
         {{ formatCurrency(totalGainLoss, true) }}
       </div>
       <div 
@@ -33,7 +28,7 @@
     <!-- Number of Positions -->
     <div class="card text-center">
       <div class="text-sm font-medium text-secondary-600 mb-2">Active Positions</div>
-      <div class="text-3xl font-bold text-secondary-900">{{ numberOfPositions }}</div>
+      <div class="text-3xl font-bold text-white">{{ numberOfPositions }}</div>
       <div class="text-sm text-secondary-500 mt-1">
         Across {{ numberOfPortfolios }} portfolio{{ numberOfPortfolios !== 1 ? 's' : '' }}
       </div>
@@ -42,7 +37,7 @@
     <!-- Performance Score -->
     <div class="card text-center">
       <div class="text-sm font-medium text-secondary-600 mb-2">AI Performance Score</div>
-      <div class="text-3xl font-bold text-primary-600">{{ performanceScore }}/100</div>
+      <div class="text-3xl font-bold text-white">{{ performanceScore }}/100</div>
       <div class="w-full bg-secondary-200 rounded-full h-2 mt-3">
         <div 
           class="bg-gradient-to-r from-primary-600 to-accent-600 h-2 rounded-full transition-all duration-500"

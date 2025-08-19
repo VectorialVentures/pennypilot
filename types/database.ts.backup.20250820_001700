@@ -200,7 +200,6 @@ export type Database = {
           id: string
           portfolio_id: string
           rating: number
-          risk_assessment: string | null
           title: string | null
         }
         Insert: {
@@ -209,7 +208,6 @@ export type Database = {
           id?: string
           portfolio_id: string
           rating: number
-          risk_assessment?: string | null
           title?: string | null
         }
         Update: {
@@ -218,7 +216,6 @@ export type Database = {
           id?: string
           portfolio_id?: string
           rating?: number
-          risk_assessment?: string | null
           title?: string | null
         }
         Relationships: [

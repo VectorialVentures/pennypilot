@@ -267,6 +267,7 @@ async function processBatchResults(job: any, batchStatus: any, openaiApiKey: str
               .from('security_analysis')
               .insert({
                 security_id: securityInfo.security_id,
+                title: validatedAssessment.title,
                 assessment: validatedAssessment.analysis,
                 recommendation: validatedAssessment.recommendation
               })

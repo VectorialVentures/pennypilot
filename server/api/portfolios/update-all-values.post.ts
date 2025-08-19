@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
       try {
         console.log(`Updating portfolio: ${portfolio.name} (${portfolio.id})`)
 
-        // Get portfolio securities with latest prices
+        // Get portfolio securities 
         const { data: portfolioSecurities, error: securitiesError } = await supabase
           .from('portfolio_securities')
           .select(`
@@ -66,39 +66,70 @@ export default defineEventHandler(async (event) => {
 
         let totalSecuritiesValue = 0
         let pricesFound = 0
+        const securitiesUpdates = []
 
         if (portfolioSecurities && portfolioSecurities.length > 0) {
-          for (const portfolioSecurity of portfolioSecurities) {
-            // Get the most recent price for this security
-            const { data: latestPrice } = await supabase
+          // Get all security IDs for batch price lookup
+          const securityIds = portfolioSecurities.map(ps => ps.security_id).filter(id => id)
+          
+          if (securityIds.length > 0) {
+            // Get latest prices for all securities in one query
+            const { data: allLatestPrices } = await supabase
               .from('security_prices')
-              .select('close, date')
-              .eq('security_id', portfolioSecurity.security_id)
-              .order('date', { ascending: false })
-              .limit(1)
-              .single()
+              .select('security_id, close, date')
+              .in('security_id', securityIds)
+              .order('security_id, date', { ascending: false })
 
-            let currentPrice = 0
-            if (latestPrice) {
-              currentPrice = latestPrice.close
-              pricesFound++
-            } else {
-              // Fallback to average price from stored worth
-              currentPrice = portfolioSecurity.amount > 0 ? portfolioSecurity.worth / portfolioSecurity.amount : 0
+            // Create map of latest price per security
+            const latestPricesMap = new Map()
+            if (allLatestPrices) {
+              for (const price of allLatestPrices) {
+                if (!latestPricesMap.has(price.security_id)) {
+                  latestPricesMap.set(price.security_id, price)
+                }
+              }
             }
 
-            const currentWorth = portfolioSecurity.amount * currentPrice
-            totalSecuritiesValue += currentWorth
+            // Calculate worth for each security position
+            for (const portfolioSecurity of portfolioSecurities) {
+              if (!portfolioSecurity.security_id || !portfolioSecurity.amount) continue
 
-            // Update portfolio_securities worth if price was found and different
-            if (latestPrice && Math.abs(currentWorth - portfolioSecurity.worth) > 0.01) {
-              await supabase
-                .from('portfolio_securities')
-                .update({
-                  worth: currentWorth,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', portfolioSecurity.id)
+              const latestPrice = latestPricesMap.get(portfolioSecurity.security_id)
+              
+              if (latestPrice && latestPrice.close) {
+                // Calculate current worth = amount * current_price
+                const currentWorth = portfolioSecurity.amount * latestPrice.close
+                totalSecuritiesValue += currentWorth
+                pricesFound++
+
+                // Add to batch update if worth has changed
+                if (Math.abs(currentWorth - (portfolioSecurity.worth || 0)) > 0.01) {
+                  securitiesUpdates.push({
+                    id: portfolioSecurity.id,
+                    worth: currentWorth
+                  })
+                }
+              } else {
+                // No current price available, use existing worth or 0
+                const existingWorth = portfolioSecurity.worth || 0
+                totalSecuritiesValue += existingWorth
+                console.warn(`No current price found for ${portfolioSecurity.securities.symbol}, using existing worth: ${existingWorth}`)
+              }
+            }
+
+            // Batch update all portfolio securities worth
+            if (securitiesUpdates.length > 0) {
+              console.log(`Updating worth for ${securitiesUpdates.length} securities in portfolio ${portfolio.name}`)
+              
+              for (const update of securitiesUpdates) {
+                await supabase
+                  .from('portfolio_securities')
+                  .update({ 
+                    worth: update.worth,
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq('id', update.id)
+              }
             }
           }
         }

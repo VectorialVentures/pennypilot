@@ -274,7 +274,7 @@ async function processImmediateAssessments(securitiesToAssess: any[], supabase: 
       }
 
       // Validate and save the assessment
-      if (assessment.analysis && assessment.recommendation) {
+      if (assessment.title && assessment.analysis && assessment.recommendation) {
         const validRecommendations = ['buy', 'hold', 'sell']
         const normalizedRecommendation = assessment.recommendation.toLowerCase()
         
@@ -314,6 +314,7 @@ async function processImmediateAssessments(securitiesToAssess: any[], supabase: 
           .from('security_analysis')
           .insert({
             security_id: security.id,
+            title: assessment.title,
             assessment: assessment.analysis,
             recommendation: normalizedRecommendation
           })
@@ -335,12 +336,12 @@ async function processImmediateAssessments(securitiesToAssess: any[], supabase: 
           })
         }
       } else {
-        console.error(`Missing analysis or recommendation for ${security.symbol}`)
+        console.error(`Missing title, analysis or recommendation for ${security.symbol}`)
         errorCount++
         results.push({
           symbol: security.symbol,
           status: 'error',
-          error: 'Missing analysis or recommendation in AI response'
+          error: 'Missing title, analysis or recommendation in AI response'
         })
       }
 
@@ -431,9 +432,10 @@ Price Performance (Past Month): ${priceMetrics}
 News Analysis (Past Month): ${newsSummary}${priorContext}
 
 Please provide:
-1. A comprehensive but concise analysis (3-4 paragraphs) covering fundamentals, technical analysis, and market sentiment
-2. A clear investment recommendation: BUY, HOLD, or SELL
-3. Consider any previous assessments for consistency, but prioritize current data and market conditions`
+1. A short, descriptive title for your analysis (3-8 words that capture the main theme, e.g., "Strong Growth Despite Market Headwinds", "Overvalued in Current Market", "Solid Dividend Play for Income")
+2. A comprehensive but concise analysis (3-4 paragraphs) covering fundamentals, technical analysis, and market sentiment
+3. A clear investment recommendation for this specific security: BUY, HOLD, or SELL
+4. Consider any previous assessments for consistency, but prioritize current data and market conditions`
 }
 
 // This function is now replaced by the OpenAI service

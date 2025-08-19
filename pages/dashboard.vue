@@ -129,8 +129,13 @@
             </div>
           </div>
           
-          <div v-if="getLatestAnalysis(portfolio)" class="text-white/80 leading-relaxed">
-            {{ getLatestAnalysis(portfolio)?.assessment }}
+          <div v-if="getLatestAnalysis(portfolio)">
+            <div v-if="getLatestAnalysis(portfolio)?.title" class="mb-3">
+              <h4 class="text-lg font-semibold text-white">{{ getLatestAnalysis(portfolio)?.title }}</h4>
+            </div>
+            <div class="text-white/80 leading-relaxed">
+              {{ getLatestAnalysis(portfolio)?.assessment }}
+            </div>
           </div>
           
           <div v-else class="text-center py-4">
@@ -400,7 +405,10 @@ const isDeletingPortfolio = ref(false)
 
 // Calculate dashboard data from real portfolios with current market prices
 const dashboardData = computed(() => {
+  console.log('Calculating dashboardData, portfolios:', portfolios.value)
+  
   if (!portfolios.value.length) {
+    console.log('No portfolios found')
     return {
       totalValue: 0,
       totalGainLoss: 0,
@@ -669,7 +677,7 @@ const loadPortfolioAnalysis = async () => {
     // Query all analysis data in a single request
     const { data: allAnalysis, error } = await supabase
       .from('portfolio_analysis')
-      .select('id, assessment, rating, created_at, portfolio_id')
+      .select('id, title, assessment, rating, created_at, portfolio_id')
       .in('portfolio_id', portfolioIds)
       .order('created_at', { ascending: false })
     

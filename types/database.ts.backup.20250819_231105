@@ -200,8 +200,6 @@ export type Database = {
           id: string
           portfolio_id: string
           rating: number
-          risk_assessment: string | null
-          title: string | null
         }
         Insert: {
           assessment: string
@@ -209,8 +207,6 @@ export type Database = {
           id?: string
           portfolio_id: string
           rating: number
-          risk_assessment?: string | null
-          title?: string | null
         }
         Update: {
           assessment?: string
@@ -218,8 +214,6 @@ export type Database = {
           id?: string
           portfolio_id?: string
           rating?: number
-          risk_assessment?: string | null
-          title?: string | null
         }
         Relationships: [
           {
@@ -299,6 +293,7 @@ export type Database = {
         Row: {
           action: Database["public"]["Enums"]["portfolio_action"] | null
           amount: number | null
+          created_at: string
           date: string | null
           id: string
           justification: string | null
@@ -308,6 +303,7 @@ export type Database = {
         Insert: {
           action?: Database["public"]["Enums"]["portfolio_action"] | null
           amount?: number | null
+          created_at?: string
           date?: string | null
           id?: string
           justification?: string | null
@@ -317,6 +313,7 @@ export type Database = {
         Update: {
           action?: Database["public"]["Enums"]["portfolio_action"] | null
           amount?: number | null
+          created_at?: string
           date?: string | null
           id?: string
           justification?: string | null
@@ -539,7 +536,6 @@ export type Database = {
           id: string
           recommendation: Database["public"]["Enums"]["recommendation"]
           security_id: string
-          title: string | null
         }
         Insert: {
           assessment: string
@@ -547,7 +543,6 @@ export type Database = {
           id?: string
           recommendation: Database["public"]["Enums"]["recommendation"]
           security_id: string
-          title?: string | null
         }
         Update: {
           assessment?: string
@@ -555,7 +550,6 @@ export type Database = {
           id?: string
           recommendation?: Database["public"]["Enums"]["recommendation"]
           security_id?: string
-          title?: string | null
         }
         Relationships: [
           {
@@ -895,7 +889,6 @@ export type Database = {
         | "cancelled"
       job_type: "security_analysis" | "portfolio_analysis"
       portfolio_action: "buy" | "sell" | "hold"
-      priority: "low" | "medium" | "high"
       recommendation: "sell" | "hold" | "buy"
       risk_level: "conservative" | "moderate" | "aggressive"
       sentiment: "negative" | "neutral" | "positive"
@@ -1035,7 +1028,6 @@ export const Constants = {
       ],
       job_type: ["security_analysis", "portfolio_analysis"],
       portfolio_action: ["buy", "sell", "hold"],
-      priority: ["low", "medium", "high"],
       recommendation: ["sell", "hold", "buy"],
       risk_level: ["conservative", "moderate", "aggressive"],
       sentiment: ["negative", "neutral", "positive"],

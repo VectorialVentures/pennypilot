@@ -122,14 +122,14 @@ export default defineEventHandler(async (event) => {
         }
 
         // Validate the analysis response
-        if (!analysis.assessment || !analysis.rating || !analysis.actions || !analysis.risk_assessment) {
+        if (!analysis.title || !analysis.assessment || !analysis.rating || !analysis.actions || !analysis.risk_assessment) {
           console.error(`Invalid analysis structure for ${portfolio.name}:`, analysis)
           errorCount++
           results.push({
             portfolioId: portfolio.id,
             portfolioName: portfolio.name,
             status: 'error',
-            error: 'Invalid analysis structure from AI'
+            error: 'Invalid analysis structure from AI (missing title, assessment, rating, actions, or risk_assessment)'
           })
           continue
         }
@@ -160,6 +160,7 @@ export default defineEventHandler(async (event) => {
           .from('portfolio_analysis')
           .insert({
             portfolio_id: portfolio.id,
+            title: analysis.title,
             assessment: analysis.assessment,
             rating: analysis.rating
           })
@@ -167,21 +168,53 @@ export default defineEventHandler(async (event) => {
         if (!insertError) {
           // Also store the recommended actions as portfolio recommendations
           if (analysis.actions && analysis.actions.length > 0) {
-            const recommendations = analysis.actions
-              .filter(action => ['buy', 'sell', 'hold'].includes(action.action) && action.symbol)
-              .map(action => ({
-                portfolio_id: portfolio.id,
-                security_id: null, // We'll need to resolve the symbol to security_id
-                action: action.action as 'buy' | 'sell' | 'hold',
-                amount: action.amount || null,
-                reasoning: action.reasoning,
-                priority: action.priority
-              }))
+            console.log(`Processing ${analysis.actions.length} actions for ${portfolio.name}`)
+            
+            for (const action of analysis.actions) {
+              try {
+                // Only process actionable recommendations with valid actions
+                if (!['buy', 'sell', 'hold'].includes(action.action)) {
+                  console.log(`Skipping non-actionable recommendation: ${action.action}`)
+                  continue
+                }
 
-            if (recommendations.length > 0) {
-              // Note: In a real implementation, you'd want to resolve symbols to security_ids
-              // For now, we're just storing the main analysis
-              console.log(`Generated ${recommendations.length} recommendations for ${portfolio.name}`)
+                let securityId = null
+                
+                // Resolve symbol to security_id if provided
+                if (action.symbol) {
+                  const { data: security } = await supabase
+                    .from('securities')
+                    .select('id')
+                    .eq('symbol', action.symbol.toUpperCase())
+                    .single()
+                  
+                  if (security) {
+                    securityId = security.id
+                  } else {
+                    console.warn(`Security not found for symbol: ${action.symbol}`)
+                  }
+                }
+
+                // Insert portfolio recommendation
+                const { error: recommendationError } = await supabase
+                  .from('portfolio_recommendations')
+                  .insert({
+                    portfolio_id: portfolio.id,
+                    security_id: securityId,
+                    action: action.action as 'buy' | 'sell' | 'hold',
+                    amount: action.amount || null,
+                    justification: action.reasoning, // Use 'justification' to match database schema
+                    date: new Date().toISOString().split('T')[0] // Current date
+                  })
+
+                if (recommendationError) {
+                  console.error(`Error inserting recommendation for ${portfolio.name}:`, recommendationError)
+                } else {
+                  console.log(`Created ${action.action} recommendation for ${portfolio.name}${action.symbol ? ` (${action.symbol})` : ''}`)
+                }
+              } catch (actionError) {
+                console.error(`Error processing action for ${portfolio.name}:`, actionError)
+              }
             }
           }
 
@@ -242,12 +275,14 @@ export default defineEventHandler(async (event) => {
 
 async function gatherPortfolioData(portfolio: { id: string; name: string; description: string | null; risk_level: string | null; sectors: unknown; created_at: string }, supabase: unknown) {
   try {
+    console.log(`Gathering data for portfolio: ${portfolio.name} (${portfolio.id})`)
+    
     // Get current portfolio holdings
-    const { data: holdings } = await supabase
+    const { data: holdings, error: holdingsError } = await supabase
       .from('portfolio_securities')
       .select(`
         amount,
-        updated_at,
+        created_at,
         securities!inner(
           id,
           symbol,
@@ -259,6 +294,15 @@ async function gatherPortfolioData(portfolio: { id: string; name: string; descri
       `)
       .eq('portfolio_id', portfolio.id)
       .gt('amount', 0)
+    
+    if (holdingsError) {
+      console.error(`Error fetching holdings for ${portfolio.name}:`, holdingsError)
+    }
+    console.log(`Found ${holdings?.length || 0} holdings for portfolio ${portfolio.name}`)
+    
+    if (holdings && holdings.length > 0) {
+      console.log('Holdings details:', holdings.map(h => `${h.securities?.symbol}: ${h.amount} shares`))
+    }
 
     // Get current liquid funds
     const { data: liquidFunds } = await supabase
@@ -294,7 +338,7 @@ async function gatherPortfolioData(portfolio: { id: string; name: string; descri
     // Get previous portfolio analyses (last 3)
     const { data: priorAnalyses } = await supabase
       .from('portfolio_analysis')
-      .select('assessment, rating, created_at')
+      .select('title, assessment, rating, created_at')
       .eq('portfolio_id', portfolio.id)
       .order('created_at', { ascending: false })
       .limit(3)
@@ -365,38 +409,55 @@ function createPortfolioAnalysisPrompt(portfolio: { name: string }, portfolioDat
   const portfolioDataObj = portfolioData as Record<string, unknown>
   const { holdings, liquidFunds, performanceHistory, securityAnalyses } = portfolioDataObj
   
+  // Validate data types and convert to arrays
+  const holdingsArray = Array.isArray(holdings) ? holdings as unknown[] : []
+  const performanceArray = Array.isArray(performanceHistory) ? performanceHistory as unknown[] : []
+  const securityAnalysesArray = Array.isArray(securityAnalyses) ? securityAnalyses as unknown[] : []
+  
+  console.log(`Portfolio ${portfolio.name} data summary:`)
+  console.log(`- Holdings: ${holdingsArray.length} items`)
+  console.log(`- Performance history: ${performanceArray.length} items`)
+  console.log(`- Security analyses: ${securityAnalysesArray.length} items`)
+  
   // Portfolio composition analysis
   let portfolioComposition = 'No current holdings'
-  if (holdings.length > 0) {
-    const holdingsArray = holdings as unknown[]
-    const totalValue = holdingsArray.reduce((sum: number, holding: unknown) => {
+  if (holdingsArray.length > 0) {
+    console.log('Processing holdings for portfolio composition...')
+    
+    // Calculate total shares for percentage calculations (using share counts)
+    const totalShares = holdingsArray.reduce((sum: number, holding: unknown) => {
       const holdingObj = holding as Record<string, unknown>
       return sum + (typeof holdingObj.amount === 'number' ? holdingObj.amount : 0)
     }, 0)
+    
     const compositionDetails = holdingsArray.map((holding: unknown) => {
       const holdingObj = holding as Record<string, unknown>
       const securities = holdingObj.securities as Record<string, unknown>
       const amount = typeof holdingObj.amount === 'number' ? holdingObj.amount : 0
-      const percentage = totalValue > 0 ? ((amount / totalValue) * 100).toFixed(1) : '0'
-      return `${securities.symbol} (${securities.name}): ${amount} shares, ${percentage}% of portfolio - ${securities.sector || 'Unknown sector'}`
+      const percentage = totalShares > 0 ? ((amount / totalShares) * 100).toFixed(1) : '0'
+      return `${securities.symbol} (${securities.name}): ${amount} shares, ${percentage}% of holdings - ${securities.sector || 'Unknown sector'} (${securities.asset_type || 'Unknown type'})`
     }).join('\n')
-    portfolioComposition = `Total Holdings Value: ${totalValue}\n${compositionDetails}`
+    
+    portfolioComposition = `Total Holdings: ${holdingsArray.length} securities, ${totalShares} total shares\n${compositionDetails}`
+    console.log(`Generated portfolio composition with ${holdingsArray.length} holdings`)
+  } else {
+    console.log('No holdings found for portfolio composition')
   }
 
   // Performance metrics
   let performanceMetrics = 'No recent performance data available'
-  if (performanceHistory.length > 1) {
-    const latestValue = performanceHistory[0].value
-    const oldestValue = performanceHistory[performanceHistory.length - 1].value
+  if (performanceArray.length > 1) {
+    const performanceData = performanceArray as Record<string, unknown>[]
+    const latestValue = performanceData[0].value as number
+    const oldestValue = performanceData[performanceData.length - 1].value as number
     const periodReturn = ((latestValue - oldestValue) / oldestValue * 100).toFixed(2)
-    const daysTracked = performanceHistory.length
+    const daysTracked = performanceData.length
     performanceMetrics = `Current Portfolio Value: $${latestValue}, ${daysTracked}-day return: ${periodReturn}%`
   }
 
   // Security analysis summary
   let securityAnalysisContext = 'No recent security analyses available'
-  if (securityAnalyses.length > 0) {
-    const securityAnalysesArray = securityAnalyses as unknown[]
+  if (securityAnalysesArray.length > 0 && holdingsArray.length > 0) {
     const analysisSummary = securityAnalysesArray.map((analysis: unknown) => {
       const analysisObj = analysis as Record<string, unknown>
       const security = holdingsArray.find((h: unknown) => {
@@ -450,27 +511,29 @@ ${performanceMetrics}
 ${securityAnalysisContext}${priorAnalysisContext}
 
 Please provide:
-1. A comprehensive assessment of the current portfolio including:
+1. A short, descriptive title for your portfolio analysis (3-8 words that capture the main theme, e.g., "Well-Diversified Growth Portfolio", "Over-Concentrated Tech Holdings", "Conservative Income Strategy")
+
+2. A comprehensive assessment of the current portfolio including:
    - Diversification analysis
    - Risk level evaluation vs. target
    - Performance assessment
    - Sector allocation review
    - Individual holding analysis
 
-2. An overall portfolio rating (1-10) based on:
+3. An overall portfolio rating (1-10) based on:
    - Risk-return alignment
    - Diversification quality
    - Performance potential
    - Strategic positioning
 
-3. Specific actionable recommendations including:
+4. Specific actionable recommendations including:
    - Securities to buy/sell with specific reasoning
    - Portfolio rebalancing suggestions
    - Cash deployment strategies
    - Risk management improvements
    - Each action should include priority level and reasoning
 
-4. Risk assessment covering:
+5. Risk assessment covering:
    - Current risk level vs. target risk profile
    - Alignment recommendations
    - Risk management suggestions

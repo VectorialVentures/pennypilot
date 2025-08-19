@@ -75,18 +75,33 @@ export default defineEventHandler(async (event) => {
     let totalSecuritiesValue = 0
     const updatedSecurities = []
 
-    for (const portfolioSecurity of portfolioSecurities) {
-      // Get the most recent price for this security
-      const { data: latestPrice } = await supabase
-        .from('security_prices')
-        .select('close, date')
-        .eq('security_id', portfolioSecurity.security_id)
-        .order('date', { ascending: false })
-        .limit(1)
-        .single()
+    // Get all security IDs for batch price lookup
+    const securityIds = portfolioSecurities.map(ps => ps.security_id).filter(id => id)
+    
+    // Get latest prices for all securities in one query
+    const { data: allLatestPrices } = await supabase
+      .from('security_prices')
+      .select('security_id, close, date')
+      .in('security_id', securityIds)
+      .order('security_id, date', { ascending: false })
 
+    // Create map of latest price per security
+    const latestPricesMap = new Map()
+    if (allLatestPrices) {
+      for (const price of allLatestPrices) {
+        if (!latestPricesMap.has(price.security_id)) {
+          latestPricesMap.set(price.security_id, price)
+        }
+      }
+    }
+
+    for (const portfolioSecurity of portfolioSecurities) {
+      if (!portfolioSecurity.security_id || !portfolioSecurity.amount) continue
+
+      const latestPrice = latestPricesMap.get(portfolioSecurity.security_id)
+      
       let currentPrice = 0
-      if (latestPrice) {
+      if (latestPrice && latestPrice.close) {
         currentPrice = latestPrice.close
       } else {
         // Fallback to stored worth divided by amount for average price
@@ -98,7 +113,7 @@ export default defineEventHandler(async (event) => {
       totalSecuritiesValue += currentWorth
 
       // Update portfolio_securities with current worth
-      if (latestPrice && Math.abs(currentWorth - portfolioSecurity.worth) > 0.01) {
+      if (latestPrice && Math.abs(currentWorth - (portfolioSecurity.worth || 0)) > 0.01) {
         await supabase
           .from('portfolio_securities')
           .update({
@@ -107,7 +122,7 @@ export default defineEventHandler(async (event) => {
           })
           .eq('id', portfolioSecurity.id)
 
-        console.log(`Updated worth for ${portfolioSecurity.securities.symbol}: ${portfolioSecurity.worth} -> ${currentWorth}`)
+        console.log(`Updated worth for ${portfolioSecurity.securities.symbol}: ${portfolioSecurity.worth || 0} -> ${currentWorth}`)
       }
 
       updatedSecurities.push({
