@@ -303,7 +303,6 @@ export type Database = {
           id: string
           justification: string | null
           portfolio_id: string | null
-          portolio_analysis_id: string
           security_id: string | null
         }
         Insert: {
@@ -313,7 +312,6 @@ export type Database = {
           id?: string
           justification?: string | null
           portfolio_id?: string | null
-          portolio_analysis_id: string
           security_id?: string | null
         }
         Update: {
@@ -323,7 +321,6 @@ export type Database = {
           id?: string
           justification?: string | null
           portfolio_id?: string | null
-          portolio_analysis_id?: string
           security_id?: string | null
         }
         Relationships: [
@@ -339,13 +336,6 @@ export type Database = {
             columns: ["security_id"]
             isOneToOne: false
             referencedRelation: "securities"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "portfolio_recommendations_portolio_analysis_id_fkey"
-            columns: ["portolio_analysis_id"]
-            isOneToOne: false
-            referencedRelation: "portfolio_analysis"
             referencedColumns: ["id"]
           },
         ]

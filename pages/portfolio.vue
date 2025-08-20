@@ -256,12 +256,99 @@
       </div>
     </div>
 
+    <!-- Portfolio Analysis Section -->
+    <div v-if="selectedPortfolioId && selectedPortfolioId !== 'all'" class="card-dark mt-8">
+      <div class="flex items-center justify-between mb-6">
+        <div>
+          <h2 class="text-xl font-semibold text-white">Portfolio Analysis</h2>
+          <p class="text-sm text-white/70">AI-powered insights for {{ getSelectedPortfolioName() }}</p>
+        </div>
+      </div>
+      
+      <div v-if="getPortfolioAnalysis()" class="space-y-6">
+        <!-- Analysis Title and Rating -->
+        <div class="flex items-start justify-between">
+          <div class="flex-1">
+            <h3 v-if="getPortfolioAnalysis().title" class="text-xl font-semibold text-white mb-2">
+              {{ getPortfolioAnalysis().title }}
+            </h3>
+            <div class="text-white/80 leading-relaxed">
+              {{ getPortfolioAnalysis().assessment }}
+            </div>
+          </div>
+          <div class="ml-6 text-right">
+            <div class="flex items-center space-x-2">
+              <span class="text-2xl font-bold text-white">{{ getPortfolioAnalysis().rating }}/10</span>
+              <div class="w-16 bg-white/20 rounded-full h-2">
+                <div 
+                  class="h-2 rounded-full transition-all duration-500"
+                  :class="getRatingColor(getPortfolioAnalysis().rating)"
+                  :style="{ width: `${getPortfolioAnalysis().rating * 10}%` }"
+                ></div>
+              </div>
+            </div>
+            <div class="text-xs text-white/50 mt-1">
+              {{ formatAnalysisDate(getPortfolioAnalysis().created_at) }}
+            </div>
+          </div>
+        </div>
+        
+        <!-- Portfolio Recommendations -->
+        <div v-if="getPortfolioAnalysis().portfolio_recommendations && getPortfolioAnalysis().portfolio_recommendations.length > 0">
+          <h4 class="text-lg font-semibold text-white mb-4">Recommended Actions</h4>
+          <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="recommendation in getPortfolioAnalysis().portfolio_recommendations"
+              :key="recommendation.id"
+              class="border border-white/20 rounded-lg p-4 hover:border-white/30 transition-colors duration-200 bg-white/5"
+            >
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center space-x-2">
+                  <div
+                    :class="[
+                      'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
+                      recommendation.action === 'buy' ? 'bg-accent-500/20 text-accent-400' :
+                      recommendation.action === 'sell' ? 'bg-danger-500/20 text-danger-400' :
+                      'bg-primary-500/20 text-primary-400'
+                    ]"
+                  >
+                    {{ recommendation.action?.toUpperCase().charAt(0) }}
+                  </div>
+                  <div>
+                    <div class="text-sm font-medium text-white">
+                      {{ recommendation.action?.toUpperCase() }}
+                      <span v-if="recommendation.securities?.symbol" class="ml-1">{{ recommendation.securities.symbol }}</span>
+                    </div>
+                    <div v-if="recommendation.securities?.name" class="text-xs text-white/60">
+                      {{ recommendation.securities.name }}
+                    </div>
+                  </div>
+                </div>
+                <div v-if="recommendation.amount" class="text-sm text-white/70">
+                  {{ recommendation.amount }}
+                </div>
+              </div>
+              <div v-if="recommendation.justification" class="text-sm text-white/70 leading-relaxed">
+                {{ recommendation.justification }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div v-else class="text-center py-8">
+        <LightBulbIcon class="w-12 h-12 text-white/40 mx-auto mb-4" />
+        <h3 class="text-lg font-medium text-white mb-2">No analysis available</h3>
+        <p class="text-white/70">Generate AI analysis for this portfolio to see insights and recommendations.</p>
+      </div>
+    </div>
+
     <!-- AI Recommendations Section -->
     <div class="card-dark mt-8">
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h2 class="text-xl font-semibold text-white">AI Recommendations</h2>
-          <p class="text-sm text-white/70">Intelligent insights for your portfolio</p>
+          <h2 class="text-xl font-semibold text-white">Security Analysis</h2>
+          <p class="text-sm text-white/70">Individual security insights</p>
         </div>
         <div class="text-sm text-white/60">
           Updated {{ new Date().toLocaleTimeString() }}
@@ -444,7 +531,8 @@ import {
   ChartBarIcon,
   NewspaperIcon,
   XMarkIcon,
-  BuildingLibraryIcon
+  BuildingLibraryIcon,
+  LightBulbIcon
 } from '@heroicons/vue/24/outline'
 import type { Database } from '~/types/database'
 
@@ -465,6 +553,7 @@ const user = useSupabaseUser()
 const portfolios = ref<any[]>([])
 const assets = ref<any[]>([])
 const aiRecommendations = ref<any[]>([])
+const portfolioAnalysis = ref<any>(null)
 
 // Security Management
 const securitySearchQuery = ref('')
@@ -489,6 +578,15 @@ onMounted(async () => {
   }
 })
 
+// Watch for portfolio selection changes to load analysis
+watch(selectedPortfolioId, async (newId) => {
+  if (newId && newId !== 'all') {
+    await loadPortfolioAnalysis(newId)
+  } else {
+    portfolioAnalysis.value = null
+  }
+})
+
 const loadPortfolios = async () => {
   if (!user.value) return
 
@@ -510,6 +608,44 @@ const loadAIRecommendations = async () => {
   } catch (error) {
     console.error('Error loading AI recommendations:', error)
     aiRecommendations.value = []
+  }
+}
+
+const loadPortfolioAnalysis = async (portfolioId: string) => {
+  if (!user.value || !portfolioId) return
+
+  try {
+    // Load the latest portfolio analysis with recommendations
+    const { data: analysis, error } = await supabase
+      .from('portfolio_analysis')
+      .select(`
+        id,
+        title,
+        assessment,
+        rating,
+        created_at,
+        portfolio_recommendations (
+          id, action, amount, justification, date,
+          securities (symbol, name)
+        )
+      `)
+      .eq('portfolio_id', portfolioId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (!error && analysis) {
+      portfolioAnalysis.value = analysis
+      console.log('Loaded portfolio analysis with recommendations:', analysis)
+    } else {
+      portfolioAnalysis.value = null
+      if (error.code !== 'PGRST116') {
+        console.error('Error loading portfolio analysis:', error)
+      }
+    }
+  } catch (error) {
+    console.error('Error loading portfolio analysis:', error)
+    portfolioAnalysis.value = null
   }
 }
 
@@ -583,6 +719,11 @@ const loadPortfolioAssets = async () => {
     // Load additional data separately to avoid complex queries
     await loadAssetPrices()
     await loadAssetAnalysis()
+
+    // Load portfolio analysis if a specific portfolio is selected
+    if (selectedPortfolioId.value && selectedPortfolioId.value !== 'all') {
+      await loadPortfolioAnalysis(selectedPortfolioId.value)
+    }
     
   } catch (error) {
     console.error('Error loading portfolio assets:', error)
@@ -747,6 +888,35 @@ const addSecurityToPortfolio = async () => {
   } finally {
     isAddingSecurity.value = false
   }
+}
+
+// Helper functions for portfolio analysis section
+const getPortfolioAnalysis = () => {
+  return portfolioAnalysis.value
+}
+
+const getSelectedPortfolioName = () => {
+  if (selectedPortfolioId.value === 'all') return 'All Portfolios'
+  const portfolio = portfolios.value.find(p => p.id === selectedPortfolioId.value)
+  return portfolio?.name || 'Unknown Portfolio'
+}
+
+const getRatingColor = (rating: number) => {
+  if (rating >= 8) return 'bg-accent-500'
+  if (rating >= 6) return 'bg-primary-500' 
+  if (rating >= 4) return 'bg-warning-500'
+  return 'bg-danger-500'
+}
+
+const formatAnalysisDate = (dateString: string) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', { 
+    month: 'short', 
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 useHead({

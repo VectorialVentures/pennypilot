@@ -156,7 +156,7 @@ export default defineEventHandler(async (event) => {
         }
 
         // Insert the portfolio analysis
-        const { error: insertError } = await supabase
+        const { data: insertedAnalysis, error: insertError } = await supabase
           .from('portfolio_analysis')
           .insert({
             portfolio_id: portfolio.id,
@@ -164,6 +164,8 @@ export default defineEventHandler(async (event) => {
             assessment: analysis.assessment,
             rating: analysis.rating
           })
+          .select()
+          .single()
 
         if (!insertError) {
           // Also store the recommended actions as portfolio recommendations
@@ -204,7 +206,8 @@ export default defineEventHandler(async (event) => {
                     action: action.action as 'buy' | 'sell' | 'hold',
                     amount: action.amount || null,
                     justification: action.reasoning, // Use 'justification' to match database schema
-                    date: new Date().toISOString().split('T')[0] // Current date
+                    date: new Date().toISOString().split('T')[0], // Current date
+                    portolio_analysis_id: insertedAnalysis.id // Link to the analysis that generated this recommendation
                   })
 
                 if (recommendationError) {

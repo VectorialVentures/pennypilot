@@ -133,8 +133,41 @@
             <div v-if="getLatestAnalysis(portfolio)?.title" class="mb-3">
               <h4 class="text-lg font-semibold text-white">{{ getLatestAnalysis(portfolio)?.title }}</h4>
             </div>
-            <div class="text-white/80 leading-relaxed">
+            <div class="text-white/80 leading-relaxed mb-4">
               {{ getLatestAnalysis(portfolio)?.assessment }}
+            </div>
+            
+            <!-- Related Recommendations -->
+            <div v-if="getLatestAnalysis(portfolio)?.portfolio_recommendations && getLatestAnalysis(portfolio).portfolio_recommendations.length > 0" class="space-y-2">
+              <h5 class="text-sm font-medium text-white/90 mb-2">Key Recommendations:</h5>
+              <div class="space-y-2">
+                <div
+                  v-for="recommendation in getLatestAnalysis(portfolio).portfolio_recommendations.slice(0, 3)"
+                  :key="recommendation.id"
+                  class="flex items-start space-x-3 p-3 bg-white/5 rounded-lg border border-white/10"
+                >
+                  <div
+                    :class="[
+                      'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium',
+                      recommendation.action === 'buy' ? 'bg-accent-500/20 text-accent-400' :
+                      recommendation.action === 'sell' ? 'bg-danger-500/20 text-danger-400' :
+                      'bg-primary-500/20 text-primary-400'
+                    ]"
+                  >
+                    {{ recommendation.action?.toUpperCase().charAt(0) }}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="text-sm text-white">
+                      <span class="font-medium">{{ recommendation.action?.toUpperCase() }}</span>
+                      <span v-if="recommendation.securities?.symbol" class="ml-1">{{ recommendation.securities.symbol }}</span>
+                      <span v-if="recommendation.amount" class="ml-1 text-white/70">({{ recommendation.amount }})</span>
+                    </div>
+                    <div v-if="recommendation.justification" class="text-xs text-white/60 mt-1 leading-relaxed">
+                      {{ recommendation.justification }}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
           
@@ -674,10 +707,28 @@ const loadPortfolioAnalysis = async () => {
     // Get all portfolio IDs at once to avoid iteration issues
     const portfolioIds = portfolios.value.map(p => p.id)
     
-    // Query all analysis data in a single request
+    // Query all analysis data with related recommendations in a single request
     const { data: allAnalysis, error } = await supabase
       .from('portfolio_analysis')
-      .select('id, title, assessment, rating, created_at, portfolio_id')
+      .select(`
+        id, 
+        title, 
+        assessment, 
+        rating, 
+        created_at, 
+        portfolio_id,
+        portfolio_recommendations (
+          id,
+          action,
+          amount,
+          justification,
+          date,
+          securities (
+            symbol,
+            name
+          )
+        )
+      `)
       .in('portfolio_id', portfolioIds)
       .order('created_at', { ascending: false })
     
@@ -697,10 +748,26 @@ const loadPortfolioAnalysis = async () => {
       return acc
     }, {})
     
-    // Assign analysis to each portfolio
+    // Assign analysis to each portfolio and collect all recommendations
+    const allRecommendations = []
+    
     portfolios.value.forEach(portfolio => {
       portfolio.portfolio_analysis = analysisByPortfolio[portfolio.id] || []
+      
+      // Collect recommendations from all portfolio analyses
+      portfolio.portfolio_analysis.forEach(analysis => {
+        if (analysis.portfolio_recommendations) {
+          allRecommendations.push(...analysis.portfolio_recommendations.map(rec => ({
+            ...rec,
+            portfolio_id: portfolio.id,
+            portfolio_name: portfolio.name
+          })))
+        }
+      })
     })
+    
+    // Update the global recommendations array for the separate recommendations section
+    recommendations.value = allRecommendations.slice(0, 5)
     
   } catch (error) {
     console.error('Error in loadPortfolioAnalysis:', error)
@@ -828,6 +895,8 @@ const loadRecommendations = async () => {
       .in('portfolio_id', portfolioIds)
       .order('created_at', { ascending: false })
       .limit(5)
+      
+    console.log('Raw recommendations query result:', { data, error, count: data?.length })
     
     if (error) throw error
     recommendations.value = data || []
@@ -931,7 +1000,7 @@ const formatDate = (dateString: string) => {
 onMounted(async () => {
   await loadProfile()
   await loadPortfolios()
-  await loadRecommendations()
+  // loadRecommendations() is now called within loadPortfolios() after analysis is loaded
   await loadRecentActivity()
 })
 
