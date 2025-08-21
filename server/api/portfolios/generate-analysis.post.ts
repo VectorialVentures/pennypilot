@@ -1,14 +1,14 @@
 import { serverSupabaseServiceRole, serverSupabaseUser } from '#supabase/server'
 import type { Database } from '~/types/database'
-import { 
-  callOpenAI, 
+import {
+  callOpenAI,
   parseOpenAIResponse,
   PORTFOLIO_ANALYSIS_SCHEMA
 } from '~/server/utils/OpenAIService'
 
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig()
-  
+
   // Verify admin user authentication - this is an admin-only operation
   const user = await serverSupabaseUser(event)
   if (!user) {
@@ -108,7 +108,7 @@ export default defineEventHandler(async (event) => {
 
         // Generate the portfolio analysis using OpenAI
         const analysis = await generatePortfolioAnalysis(portfolio, portfolioData, config.openaiApiKey)
-        
+
         if (!analysis) {
           console.log(`Failed to generate analysis for ${portfolio.name}`)
           errorCount++
@@ -162,7 +162,7 @@ export default defineEventHandler(async (event) => {
             portfolio_id: portfolio.id,
             title: analysis.title,
             assessment: analysis.assessment,
-            rating: analysis.rating
+            rating: Math.round(analysis.rating)
           })
           .select()
           .single()
@@ -171,7 +171,7 @@ export default defineEventHandler(async (event) => {
           // Also store the recommended actions as portfolio recommendations
           if (analysis.actions && analysis.actions.length > 0) {
             console.log(`Processing ${analysis.actions.length} actions for ${portfolio.name}`)
-            
+
             for (const action of analysis.actions) {
               try {
                 // Only process actionable recommendations with valid actions
@@ -181,7 +181,7 @@ export default defineEventHandler(async (event) => {
                 }
 
                 let securityId = null
-                
+
                 // Resolve symbol to security_id if provided
                 if (action.symbol) {
                   const { data: security } = await supabase
@@ -189,7 +189,7 @@ export default defineEventHandler(async (event) => {
                     .select('id')
                     .eq('symbol', action.symbol.toUpperCase())
                     .single()
-                  
+
                   if (security) {
                     securityId = security.id
                   } else {
@@ -279,7 +279,7 @@ export default defineEventHandler(async (event) => {
 async function gatherPortfolioData(portfolio: { id: string; name: string; description: string | null; risk_level: string | null; sectors: unknown; created_at: string }, supabase: unknown) {
   try {
     console.log(`Gathering data for portfolio: ${portfolio.name} (${portfolio.id})`)
-    
+
     // Get current portfolio holdings
     const { data: holdings, error: holdingsError } = await supabase
       .from('portfolio_securities')
@@ -297,12 +297,12 @@ async function gatherPortfolioData(portfolio: { id: string; name: string; descri
       `)
       .eq('portfolio_id', portfolio.id)
       .gt('amount', 0)
-    
+
     if (holdingsError) {
       console.error(`Error fetching holdings for ${portfolio.name}:`, holdingsError)
     }
     console.log(`Found ${holdings?.length || 0} holdings for portfolio ${portfolio.name}`)
-    
+
     if (holdings && holdings.length > 0) {
       console.log('Holdings details:', holdings.map(h => `${h.securities?.symbol}: ${h.amount} shares`))
     }
@@ -398,7 +398,7 @@ async function generatePortfolioAnalysis(portfolio: { id: string; name: string }
     // Parse and validate the response using the service
     const content = result.choices[0].message.content
     const parsedResponse = parseOpenAIResponse(content, portfolio.name)
-    
+
     return parsedResponse
 
   } catch (error) {
@@ -411,28 +411,28 @@ function createPortfolioAnalysisPrompt(portfolio: { name: string }, portfolioDat
   // Calculate portfolio metrics
   const portfolioDataObj = portfolioData as Record<string, unknown>
   const { holdings, liquidFunds, performanceHistory, securityAnalyses } = portfolioDataObj
-  
+
   // Validate data types and convert to arrays
   const holdingsArray = Array.isArray(holdings) ? holdings as unknown[] : []
   const performanceArray = Array.isArray(performanceHistory) ? performanceHistory as unknown[] : []
   const securityAnalysesArray = Array.isArray(securityAnalyses) ? securityAnalyses as unknown[] : []
-  
+
   console.log(`Portfolio ${portfolio.name} data summary:`)
   console.log(`- Holdings: ${holdingsArray.length} items`)
   console.log(`- Performance history: ${performanceArray.length} items`)
   console.log(`- Security analyses: ${securityAnalysesArray.length} items`)
-  
+
   // Portfolio composition analysis
   let portfolioComposition = 'No current holdings'
   if (holdingsArray.length > 0) {
     console.log('Processing holdings for portfolio composition...')
-    
+
     // Calculate total shares for percentage calculations (using share counts)
     const totalShares = holdingsArray.reduce((sum: number, holding: unknown) => {
       const holdingObj = holding as Record<string, unknown>
       return sum + (typeof holdingObj.amount === 'number' ? holdingObj.amount : 0)
     }, 0)
-    
+
     const compositionDetails = holdingsArray.map((holding: unknown) => {
       const holdingObj = holding as Record<string, unknown>
       const securities = holdingObj.securities as Record<string, unknown>
@@ -440,7 +440,7 @@ function createPortfolioAnalysisPrompt(portfolio: { name: string }, portfolioDat
       const percentage = totalShares > 0 ? ((amount / totalShares) * 100).toFixed(1) : '0'
       return `${securities.symbol} (${securities.name}): ${amount} shares, ${percentage}% of holdings - ${securities.sector || 'Unknown sector'} (${securities.asset_type || 'Unknown type'})`
     }).join('\n')
-    
+
     portfolioComposition = `Total Holdings: ${holdingsArray.length} securities, ${totalShares} total shares\n${compositionDetails}`
     console.log(`Generated portfolio composition with ${holdingsArray.length} holdings`)
   } else {
@@ -491,7 +491,7 @@ function createPortfolioAnalysisPrompt(portfolio: { name: string }, portfolioDat
       const shortAssessment = assessment.substring(0, 200) + (assessment.length > 200 ? '...' : '')
       return `${index + 1}. ${date} (Rating: ${rating}/10): ${shortAssessment}`
     }).join('\n')
-    
+
     priorAnalysisContext = `\n\nPrevious Portfolio Analyses (for context and consistency):\n${priorSummary}`
   }
 

@@ -92,7 +92,7 @@ export function createBatchRequest(options: BatchRequestOptions) {
   // For batch requests, we need to modify the prompt to request JSON format
   // since response_format is not supported in Batch API yet
   const modifiedMessages = [...messages]
-  
+
   if (json_schema && modifiedMessages.length > 0) {
     const lastMessage = modifiedMessages[modifiedMessages.length - 1]
     if (lastMessage.role === 'user') {
@@ -100,7 +100,7 @@ export function createBatchRequest(options: BatchRequestOptions) {
       const schemaExample = generateSchemaExample(json_schema)
       lastMessage.content += `\n\nFormat your response as JSON:\n${schemaExample}`
     }
-    
+
     // Update system message to emphasize JSON formatting
     if (modifiedMessages[0]?.role === 'system') {
       modifiedMessages[0].content += ' Always respond with valid JSON matching the requested format.'
@@ -124,7 +124,7 @@ export function createBatchRequest(options: BatchRequestOptions) {
  * Makes an immediate call to OpenAI API
  */
 export async function callOpenAI(
-  options: OpenAIRequestOptions, 
+  options: OpenAIRequestOptions,
   apiKey: string
 ): Promise<OpenAIResponse | null> {
   try {
@@ -155,16 +155,16 @@ export async function callOpenAI(
  * Submits a batch of requests to OpenAI Batch API
  */
 export async function submitBatch(
-  requests: BatchRequestOptions[], 
+  requests: BatchRequestOptions[],
   apiKey: string
 ): Promise<BatchResult | null> {
   try {
     // Convert requests to batch format
     const batchRequests = requests.map(createBatchRequest)
-    
+
     // Create the batch file content
     const batchContent = batchRequests.map(req => JSON.stringify(req)).join('\n')
-    
+
     // Upload batch file to OpenAI
     const fileResponse = await fetch('https://api.openai.com/v1/files', {
       method: 'POST',
@@ -224,17 +224,17 @@ export async function submitBatch(
  * Parses and validates a JSON response from OpenAI
  */
 export function parseOpenAIResponse<T = unknown>(
-  content: string, 
+  content: string,
   identifier?: string
 ): T | null {
   try {
     const parsed = JSON.parse(content)
-    
+
     if (!parsed || typeof parsed !== 'object') {
       console.error(`Invalid response object${identifier ? ` for ${identifier}` : ''}:`, parsed)
       return null
     }
-    
+
     return parsed as T
   } catch (parseError) {
     console.error(`JSON parsing error${identifier ? ` for ${identifier}` : ''}:`, parseError)
@@ -247,35 +247,35 @@ export function parseOpenAIResponse<T = unknown>(
  * Validates an assessment response structure
  */
 export function validateAssessmentResponse(
-  assessment: unknown, 
+  assessment: unknown,
   identifier?: string
 ): { title: string; analysis: string; recommendation: string } | null {
   if (!assessment || typeof assessment !== 'object') {
     console.error(`Invalid assessment object${identifier ? ` for ${identifier}` : ''}:`, assessment)
     return null
   }
-  
+
   const assessmentObj = assessment as Record<string, unknown>
-  
+
   if (!assessmentObj.title || typeof assessmentObj.title !== 'string') {
     console.error(`Missing or invalid title${identifier ? ` for ${identifier}` : ''}:`, assessment)
     return null
   }
-  
+
   if (!assessmentObj.analysis || typeof assessmentObj.analysis !== 'string') {
     console.error(`Missing or invalid analysis${identifier ? ` for ${identifier}` : ''}:`, assessment)
     return null
   }
-  
+
   if (!assessmentObj.recommendation || typeof assessmentObj.recommendation !== 'string') {
     console.error(`Missing or invalid recommendation${identifier ? ` for ${identifier}` : ''}:`, assessment)
     return null
   }
-  
+
   // Validate recommendation against allowed values
   const validRecommendations = ['buy', 'hold', 'sell']
   const normalizedRecommendation = assessmentObj.recommendation.toLowerCase().trim()
-  
+
   if (!validRecommendations.includes(normalizedRecommendation)) {
     console.error(`Invalid recommendation${identifier ? ` for ${identifier}` : ''}: "${assessmentObj.recommendation}" (normalized: "${normalizedRecommendation}")`)
     return null
@@ -340,7 +340,7 @@ export async function downloadBatchResults(fileId: string, apiKey: string): Prom
 function generateSchemaExample(jsonSchema: JSONSchema): string {
   const { schema } = jsonSchema
   const example: Record<string, string> = {}
-  
+
   for (const [key, prop] of Object.entries(schema.properties)) {
     if (prop.type === 'string') {
       if (prop.enum) {
@@ -352,7 +352,7 @@ function generateSchemaExample(jsonSchema: JSONSchema): string {
       example[key] = `Your ${key} here...`
     }
   }
-  
+
   return JSON.stringify(example, null, 2)
 }
 
@@ -403,7 +403,7 @@ export const PORTFOLIO_ANALYSIS_SCHEMA: JSONSchema = {
         type: "number",
         minimum: 1,
         maximum: 10,
-        description: "Overall portfolio rating from 1 (poor) to 10 (excellent)"
+        description: "Overall portfolio rating from 1 (poor) to 10 (excellent). Must be an integer."
       },
       actions: {
         type: "array",
