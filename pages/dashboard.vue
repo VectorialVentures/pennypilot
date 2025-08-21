@@ -1,10 +1,8 @@
 <template>
   <!-- Background matching landing page -->
-  <div class="min-h-full">
-    <div class="absolute inset-0 bg-gradient-to-br from-background-950 via-background-900 to-background-950">
-      <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
-      <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
-    </div>
+  <div class="min-h-full bg-gradient-to-br from-background-950 via-background-900 to-background-950">
+    <div class="absolute inset-0 bg-gradient-to-tr from-primary-900/20 via-transparent to-accent-900/20 animate-gradient-shift"></div>
+    <div class="absolute inset-0 bg-gradient-to-bl from-transparent via-primary-800/30 to-transparent animate-gradient-pulse"></div>
     
     <!-- Floating Gradient Orbs -->
     <div class="absolute top-20 left-1/4 w-64 h-64 bg-gradient-to-r from-primary-500/20 to-accent-500/20 rounded-full blur-2xl animate-float-slow"></div>
